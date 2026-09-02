@@ -1,0 +1,6 @@
+{
+  "name": "MKM Packers & Movers",
+  "description": "Complete management system for movers and packers including leads, quotations, bookings, invoices, and payments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
