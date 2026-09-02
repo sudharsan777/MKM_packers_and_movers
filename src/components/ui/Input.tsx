@@ -17,7 +17,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label htmlFor={inputId} className="block text-xs font-semibold text-slate-700 mb-1.5">
             {label}
           </label>
         )}
@@ -31,7 +31,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             className={cn(
-              'flex w-full h-9.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 shadow-2xs',
+              'flex w-full h-9 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 shadow-subtle',
               leftIcon && 'pl-9',
               rightIcon && 'pr-9',
               error && 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20',
@@ -69,7 +69,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label htmlFor={inputId} className="block text-xs font-semibold text-slate-700 mb-1.5">
             {label}
           </label>
         )}
@@ -78,7 +78,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           rows={rows}
           className={cn(
-            'flex w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 shadow-2xs',
+            'flex w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 shadow-subtle',
             error && 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20',
             className
           )}
@@ -109,7 +109,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={selectId} className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label htmlFor={selectId} className="block text-xs font-semibold text-slate-700 mb-1.5">
             {label}
           </label>
         )}
@@ -118,7 +118,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             id={selectId}
             ref={ref}
             className={cn(
-              'flex w-full h-9.5 rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-1.5 text-xs text-slate-900 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 appearance-none shadow-2xs cursor-pointer',
+              'flex w-full h-9 rounded-xl border border-slate-200 bg-white pl-3 pr-8 py-1.5 text-xs text-slate-900 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 appearance-none shadow-subtle cursor-pointer',
               error && 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20',
               className
             )}
@@ -158,18 +158,18 @@ export const Badge: React.FC<BadgeProps> = ({
   ...props
 }) => {
   const variants = {
-    brand: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 font-bold',
-    accent: 'bg-amber-50 text-amber-800 border-amber-200/80 font-bold',
-    warning: 'bg-amber-50 text-amber-800 border-amber-200/80 font-semibold',
-    success: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 font-semibold',
-    danger: 'bg-rose-50 text-rose-700 border-rose-200/80 font-semibold',
-    info: 'bg-sky-50 text-sky-700 border-sky-200/80 font-semibold',
+    brand: 'bg-slate-900 text-white border-slate-800 font-semibold',
+    accent: 'bg-amber-50 text-amber-900 border-amber-200/90 font-semibold',
+    warning: 'bg-amber-50 text-amber-800 border-amber-200/90 font-medium',
+    success: 'bg-emerald-50 text-emerald-800 border-emerald-200/90 font-medium',
+    danger: 'bg-rose-50 text-rose-800 border-rose-200/90 font-medium',
+    info: 'bg-sky-50 text-sky-800 border-sky-200/90 font-medium',
     neutral: 'bg-slate-100 text-slate-700 border-slate-200 font-medium',
     default: 'bg-slate-100 text-slate-700 border-slate-200 font-medium',
   };
 
   const dotColors = {
-    brand: 'bg-indigo-600',
+    brand: 'bg-white',
     accent: 'bg-amber-500',
     warning: 'bg-amber-500',
     success: 'bg-emerald-500',
@@ -182,7 +182,7 @@ export const Badge: React.FC<BadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border leading-tight shrink-0 shadow-2xs',
+        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] border leading-tight shrink-0 shadow-2xs',
         variants[variant],
         className
       )}

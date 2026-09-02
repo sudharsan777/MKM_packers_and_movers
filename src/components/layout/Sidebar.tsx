@@ -12,8 +12,8 @@ import {
   Contact,
   PieChart,
   Download,
-  Sparkles,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { useAppContext } from '../../store/AppContext';
@@ -47,45 +47,45 @@ export const Sidebar: React.FC<{
 
   const navigationGroups: NavGroup[] = [
     {
-      group: 'OPERATIONS & DISPATCH',
+      group: 'OPERATIONS',
       items: [
         { name: 'Dashboard', href: '/', icon: LayoutDashboard },
         {
-          name: 'CRM Leads',
+          name: 'Leads & Enquiries',
           href: '/leads',
           icon: Contact,
           badge: activeLeadsCount > 0 ? `${activeLeadsCount}` : undefined,
-          badgeColor: 'bg-amber-500 text-slate-950',
+          badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
         },
-        { name: 'Customers 360', href: '/customers', icon: Users },
-        { name: 'Quotations', href: '/quotations', icon: FileText },
+        { name: 'Customers Directory', href: '/customers', icon: Users },
         {
           name: 'Move Orders',
           href: '/bookings',
           icon: Truck,
           badge: activeBookingsCount > 0 ? `${activeBookingsCount}` : undefined,
-          badgeColor: 'bg-emerald-500 text-slate-950',
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
         },
       ],
     },
     {
-      group: 'FINANCIAL LEDGER',
+      group: 'FINANCE & BILLING',
       items: [
         {
           name: 'Tax Invoices',
           href: '/invoices',
           icon: Receipt,
           badge: unpaidInvoicesCount > 0 ? `${unpaidInvoicesCount}` : undefined,
-          badgeColor: 'bg-rose-500 text-white',
+          badgeColor: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
         },
+        { name: 'Quotations', href: '/quotations', icon: FileText },
         { name: 'Payments Ledger', href: '/payments', icon: CreditCard },
         { name: 'Operating Expenses', href: '/expenses', icon: TrendingUp },
       ],
     },
     {
-      group: 'INTELLIGENCE & SYSTEM',
+      group: 'ANALYTICS & SYSTEM',
       items: [
-        { name: 'Business Reports & P&L', href: '/reports', icon: PieChart },
+        { name: 'Business Reports', href: '/reports', icon: PieChart },
         { name: 'Company Settings', href: '/settings', icon: Settings },
       ],
     },
@@ -94,30 +94,30 @@ export const Sidebar: React.FC<{
   return (
     <aside className="flex flex-col h-full bg-[#0B0F19] text-slate-300 border-r border-slate-800/80 w-64 select-none">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-800/80 shrink-0 bg-[#070A12]">
+      <div className="flex items-center gap-3 px-4.5 py-4.5 border-b border-slate-800/80 shrink-0 bg-[#070A12]">
         <img
           src="/logo.png"
-          alt="MKM Packers and Movers Logo"
-          className="w-10 h-10 rounded-full object-cover shadow-md ring-2 ring-amber-400/90 shrink-0 bg-white"
+          alt="MKM Packers and Movers"
+          className="w-9 h-9 rounded-full object-cover ring-1 ring-amber-400/80 bg-white shrink-0 shadow-sm"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h1 className="text-xs font-black tracking-wider text-white uppercase truncate">
+            <h1 className="text-xs font-bold tracking-wider text-white uppercase truncate">
               MKM PACKERS
             </h1>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" title="Online" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Online" />
           </div>
-          <p className="text-[10px] text-amber-400 font-bold tracking-wide uppercase truncate">
+          <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase truncate">
             Enterprise Logistics
           </p>
         </div>
       </div>
 
-      {/* Navigation list */}
-      <div className="flex-1 overflow-y-auto px-3 py-3.5 space-y-4">
+      {/* Navigation List */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {navigationGroups.map((group) => (
           <div key={group.group} className="space-y-1">
-            <div className="px-3 text-[9px] font-black text-slate-500 tracking-wider uppercase">
+            <div className="px-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
               {group.group}
             </div>
             {group.items.map((item) => {
@@ -129,20 +129,24 @@ export const Sidebar: React.FC<{
                   onClick={onCloseMobile}
                   className={({ isActive }) =>
                     cn(
-                      'group flex items-center justify-between px-3 py-2 text-xs rounded-xl font-semibold transition-all duration-150',
+                      'group relative flex items-center justify-between px-3 py-2 text-xs rounded-xl font-medium transition-all duration-150',
                       isActive
-                        ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 text-white font-bold shadow-md shadow-indigo-600/30'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                        ? 'bg-slate-800/90 text-white font-semibold shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                     )
                   }
                 >
                   {({ isActive }) => (
                     <>
+                      {/* Active Left Indicator Bar */}
+                      {isActive && (
+                        <div className="absolute left-0 top-2 bottom-2 w-1 bg-amber-400 rounded-r-full" />
+                      )}
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Icon
                           className={cn(
                             'w-4 h-4 shrink-0 transition-colors',
-                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'
+                            isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-300'
                           )}
                         />
                         <span className="truncate">{item.name}</span>
@@ -150,8 +154,8 @@ export const Sidebar: React.FC<{
                       {item.badge && (
                         <span
                           className={cn(
-                            'px-1.5 py-0.2 text-[10px] font-black rounded-full shadow-2xs',
-                            isActive ? 'bg-white text-indigo-700' : item.badgeColor || 'bg-slate-700 text-slate-200'
+                            'px-1.5 py-0.5 text-[10px] font-bold rounded-md leading-none shadow-2xs',
+                            item.badgeColor || 'bg-slate-800 text-slate-300'
                           )}
                         >
                           {item.badge}
@@ -166,36 +170,36 @@ export const Sidebar: React.FC<{
         ))}
       </div>
 
-      {/* Bottom Profile & Logout */}
+      {/* Bottom Profile & Actions */}
       <div className="p-3 border-t border-slate-800/80 shrink-0 bg-[#070A12] space-y-2">
         {onOpenPwaModal && (
           <button
             type="button"
             onClick={onOpenPwaModal}
-            className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-[11px] text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 text-[11px] text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-bold">Install Desktop App</span>
+              <span className="font-semibold">Install Desktop App</span>
             </div>
-            <span className="text-[10px] font-bold text-amber-400">PWA</span>
+            <span className="text-[10px] font-bold text-amber-400 uppercase">PWA</span>
           </button>
         )}
 
         <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs shrink-0">
+              <div className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 text-amber-400 font-bold text-[10px] flex items-center justify-center shrink-0">
                 HQ
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-200 truncate">
-                  {user?.email || 'Enterprise Ops'}
+                <p className="text-[11px] font-semibold text-slate-200 truncate">
+                  {user?.email || 'MKM Dispatch'}
                 </p>
-                <p className="text-[10px] text-amber-400/90 font-mono truncate">{settings.phone || '09840546766'}</p>
+                <p className="text-[10px] text-slate-400 font-mono truncate">{settings.phone || '09840546766'}</p>
               </div>
             </div>
-            <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-1.5 py-0.5 rounded shrink-0">
+            <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.5 rounded shrink-0">
               Live
             </span>
           </div>
@@ -208,7 +212,7 @@ export const Sidebar: React.FC<{
                   await logout();
                 }
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-slate-900 hover:bg-rose-950/70 border border-slate-800 hover:border-rose-800/80 text-slate-400 hover:text-rose-300 text-[11px] font-bold rounded-lg transition-all cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-slate-900 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-900/60 text-slate-400 hover:text-rose-300 text-[11px] font-medium rounded-lg transition-all cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-3 h-3" />

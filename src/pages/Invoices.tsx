@@ -554,9 +554,9 @@ export const Invoices = () => {
             <button
               key={tab.id}
               onClick={() => setStatusFilter(tab.id as any)}
-              className={`px-2.5 py-0.5 text-xs rounded-full font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 py-0.5 text-xs rounded-full font-medium transition-all cursor-pointer ${
                 statusFilter === tab.id
-                  ? 'bg-indigo-600 text-white shadow-2xs font-bold'
+                  ? 'bg-slate-900 text-white shadow-subtle font-semibold'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >

@@ -362,9 +362,9 @@ export const Customers = () => {
             <button
               key={tab.id}
               onClick={() => setActiveFilter(tab.id as any)}
-              className={`px-3 py-1 text-xs rounded-full font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs rounded-full font-medium transition-all cursor-pointer ${
                 activeFilter === tab.id
-                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm font-bold'
+                  ? 'bg-slate-900 text-white shadow-subtle font-semibold'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -394,18 +394,18 @@ export const Customers = () => {
             return (
               <div
                 key={customer.id}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden flex flex-col justify-between"
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-card hover:border-slate-300 transition-all duration-200 overflow-hidden flex flex-col justify-between"
               >
                 {/* Card Header & Profile */}
                 <div className="p-4.5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm ring-2 ring-indigo-100">
+                      <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 border border-slate-800">
                         {customer.name.charAt(0)}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-bold text-slate-900 text-sm truncate leading-tight">{customer.name}</h3>
-                        <p className="text-[11px] text-slate-500 mt-0.5">Added {formatDate(customer.createdAt)}</p>
+                        <h3 className="font-semibold text-slate-900 text-sm truncate leading-tight">{customer.name}</h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Added {formatDate(customer.createdAt)}</p>
                       </div>
                     </div>
 

@@ -8,22 +8,17 @@ import { formatCurrency, formatDate } from '../utils';
 import {
   Users,
   FileText,
-  CheckCircle2,
   Receipt,
   TrendingUp,
-  ArrowUpRight,
   ArrowRight,
   Truck,
-  Wallet,
-  Clock,
   MapPin,
-  DollarSign,
-  AlertCircle,
   Plus,
-  ArrowDownRight,
-  Calendar,
-  Sparkles,
+  ArrowUpRight,
   Phone,
+  Clock,
+  CheckCircle2,
+  Calendar,
 } from 'lucide-react';
 import {
   BarChart,
@@ -57,15 +52,6 @@ export const Dashboard = () => {
   const getCustomer = (id: string) => customers.find((c) => c.id === id);
   const getCustomerName = (id: string) => getCustomer(id)?.name || 'Customer';
 
-  // Lead pipeline data
-  const pipelineStages = [
-    { label: 'New', count: leads.filter((l) => l.status === 'New').length, color: 'bg-sky-500' },
-    { label: 'Contacted', count: leads.filter((l) => l.status === 'Contacted').length, color: 'bg-amber-500' },
-    { label: 'Follow-up', count: leads.filter((l) => l.status === 'Follow-up').length, color: 'bg-indigo-500' },
-    { label: 'Quotation Sent', count: leads.filter((l) => l.status === 'Quotation Sent').length, color: 'bg-purple-500' },
-    { label: 'Confirmed', count: leads.filter((l) => l.status === 'Confirmed').length, color: 'bg-emerald-500' },
-  ];
-
   const revenueChartData = [
     { month: 'Oct', revenue: 145000, expenses: 65000 },
     { month: 'Nov', revenue: 190000, expenses: 82000 },
@@ -90,44 +76,44 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Section & Quick Action Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      {/* Executive Welcome & Actions Header */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-card flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
-            alt="MKM Packers and Movers Logo"
-            className="w-13 h-13 rounded-full object-cover shadow-sm ring-2 ring-indigo-500/80 shrink-0 bg-white"
+            alt="MKM Packers and Movers"
+            className="w-12 h-12 rounded-full object-cover ring-1 ring-amber-400 bg-white shrink-0 shadow-subtle"
           />
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 {getGreeting()}, {settings.companyName}
               </h2>
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Dispatch
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Live Cloud Sync
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5 max-w-xl truncate">
-              {settings.address}
+            <p className="text-xs text-slate-500 font-normal mt-0.5 max-w-xl truncate">
+              {settings.address || 'Chennai & Nationwide Relocation Logistics'}
             </p>
           </div>
         </div>
 
-        {/* Primary & Secondary Actions */}
+        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Button
             id="dash-btn-new-lead"
             variant="primary"
             size="sm"
             onClick={() => navigate('/leads')}
-            leftIcon={<Plus className="w-3.5 h-3.5 text-white" />}
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
           >
             New Lead
           </Button>
           <Button
             id="dash-btn-new-quote"
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => navigate('/quotations')}
             leftIcon={<FileText className="w-3.5 h-3.5 text-slate-500" />}
@@ -136,16 +122,16 @@ export const Dashboard = () => {
           </Button>
           <Button
             id="dash-btn-new-booking"
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => navigate('/bookings')}
             leftIcon={<Truck className="w-3.5 h-3.5 text-slate-500" />}
           >
-            Booking
+            Move Order
           </Button>
           <Button
             id="dash-btn-new-invoice"
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => navigate('/invoices')}
             leftIcon={<Receipt className="w-3.5 h-3.5 text-slate-500" />}
@@ -155,375 +141,283 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPI Metrics Grid with Hierarchy */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* KPI Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Billed Revenue */}
         <Card
-          className="cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all border-slate-200/80 bg-white"
+          className="cursor-pointer hover:border-slate-300 transition-all"
           onClick={() => navigate('/invoices')}
         >
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-slate-500">
                 Total Invoiced
               </span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-                <Receipt className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                <Receipt className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight my-1">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight tabular-nums">
               {formatCurrency(totalRevenue)}
             </div>
-            <p className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
-              <span>Gross billed</span>
-              <span className="text-slate-700 font-bold">{invoices.length} invoices</span>
-            </p>
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+              <span>Gross billed volume</span>
+              <span className="font-semibold text-slate-700">{invoices.length} invoices</span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Cash Collected */}
+        {/* Realized Collections */}
         <Card
-          className="cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all border-emerald-100 bg-emerald-50/30"
+          className="cursor-pointer hover:border-slate-300 transition-all"
           onClick={() => navigate('/payments')}
         >
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-                Cash Received
+              <span className="text-xs font-semibold text-emerald-800">
+                Settled Collections
               </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <TrendingUp className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-700 tracking-tight my-1">
+            <div className="text-2xl font-bold text-emerald-700 tracking-tight tabular-nums">
               {formatCurrency(totalReceived)}
             </div>
-            <p className="text-[11px] text-emerald-700/80 font-medium flex items-center justify-between">
-              <span>Settled in bank</span>
-              <span className="font-bold">{payments.length} payments</span>
-            </p>
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+              <span>Net operating profit</span>
+              <span className="font-semibold text-emerald-700 tabular-nums">
+                {formatCurrency(netProfit > 0 ? netProfit : 0)}
+              </span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Outstanding Dues */}
+        {/* Outstanding Receivables */}
         <Card
-          className="cursor-pointer hover:border-amber-300 hover:shadow-md transition-all border-amber-200 bg-amber-50/40"
+          className="cursor-pointer hover:border-slate-300 transition-all"
           onClick={() => navigate('/invoices')}
         >
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
-                Pending Balance
+              <span className="text-xs font-semibold text-amber-800">
+                Outstanding Balance
               </span>
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                <AlertCircle className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-black text-amber-900 tracking-tight my-1">
+            <div className="text-2xl font-bold text-amber-700 tracking-tight tabular-nums">
               {formatCurrency(totalOutstanding)}
             </div>
-            <p className="text-[11px] text-amber-800/90 font-medium flex items-center justify-between">
-              <span>Uncollected dues</span>
-              <span className="font-bold">{outstandingInvoices.length} pending</span>
-            </p>
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+              <span>Pending settlement</span>
+              <span className="font-semibold text-amber-700">{outstandingInvoices.length} pending</span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Net Profit Card - Electric Royal Indigo Hero Card */}
+        {/* Active Dispatch Moves */}
         <Card
-          className="cursor-pointer hover:shadow-xl transition-all bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 text-white border-transparent shadow-brand"
-          onClick={() => navigate('/reports')}
-        >
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold text-indigo-100 uppercase tracking-wider">
-                Net Cash Profit
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs">
-                <Wallet className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-xl sm:text-2xl font-black text-white tracking-tight my-1">
-              {formatCurrency(netProfit)}
-            </div>
-            <p className="text-[11px] text-indigo-100 font-medium flex items-center justify-between">
-              <span>Collected vs {formatCurrency(totalExpenses)} exp</span>
-              <ArrowRight className="w-3.5 h-3.5 text-white" />
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Secondary Operational Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 text-xs shadow-2xs">
-        <div
-          className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-          onClick={() => navigate('/leads')}
-        >
-          <div className="w-8.5 h-8.5 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
-            <Users className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-medium">New Leads</p>
-            <p className="text-sm font-bold text-slate-900">{newLeadsCount} / {totalLeadsCount} total</p>
-          </div>
-        </div>
-
-        <div
-          className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+          className="cursor-pointer hover:border-slate-300 transition-all"
           onClick={() => navigate('/bookings')}
         >
-          <div className="w-8.5 h-8.5 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-            <Truck className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-medium">Active Moves</p>
-            <p className="text-sm font-bold text-slate-900">{activeBookingsCount} on road</p>
-          </div>
-        </div>
-
-        <div
-          className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-          onClick={() => navigate('/quotations')}
-        >
-          <div className="w-8.5 h-8.5 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-            <FileText className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-medium">Quotations</p>
-            <p className="text-sm font-bold text-slate-900">{quotations.length} sent</p>
-          </div>
-        </div>
-
-        <div
-          className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-          onClick={() => navigate('/expenses')}
-        >
-          <div className="w-8.5 h-8.5 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
-            <ArrowDownRight className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-medium">Total Expenses</p>
-            <p className="text-sm font-bold text-rose-700">{formatCurrency(totalExpenses)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Charts & Pipeline Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Financial Flow Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-xs font-bold text-slate-900">
-                Revenue vs Operating Expenses
-              </CardTitle>
-              <CardDescription>Monthly billed sales compared to operational overheads</CardDescription>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-600">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Revenue
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">
+                Active Operations
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Expenses
-              </span>
+              <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                <Truck className="w-3.5 h-3.5" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-5">
-            <div className="h-64 sm:h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueChartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: '#64748B' }}
-                    dy={6}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: '#64748B' }}
-                    tickFormatter={(val) => `₹${val / 1000}k`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: '#F8FAFC' }}
-                    contentStyle={{
-                      backgroundColor: '#FFFFFF',
-                      borderRadius: '12px',
-                      border: '1px solid #E2E8F0',
-                      fontSize: '12px',
-                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                    }}
-                    formatter={(value: number, name: string) => [
-                      formatCurrency(value),
-                      name === 'revenue' ? 'Invoiced' : 'Operating Cost',
-                    ]}
-                  />
-                  <Bar dataKey="revenue" fill="#4F46E5" radius={[6, 6, 0, 0]} maxBarSize={32} />
-                  <Bar dataKey="expenses" fill="#F59E0B" radius={[6, 6, 0, 0]} maxBarSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight tabular-nums">
+              {activeBookingsCount} Moves
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Lead Conversion Pipeline */}
-        <Card className="flex flex-col">
-          <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xs font-bold text-slate-900">Lead Pipeline Funnel</CardTitle>
-              <CardDescription>Current stage of customer inquiries</CardDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => navigate('/leads')}
-              className="text-indigo-600 hover:text-indigo-800"
-            >
-              View All →
-            </Button>
-          </CardHeader>
-          <CardContent className="p-5 flex-1 flex flex-col justify-between space-y-4">
-            <div className="space-y-3.5">
-              {pipelineStages.map((stage) => {
-                const percentage = totalLeadsCount > 0 ? Math.round((stage.count / totalLeadsCount) * 100) : 0;
-                return (
-                  <div key={stage.label} className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-slate-700">{stage.label}</span>
-                      <span className="text-slate-900">
-                        {stage.count} <span className="text-slate-400 font-normal">({percentage}%)</span>
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${stage.color}`}
-                        style={{ width: `${Math.max(6, (stage.count / Math.max(1, totalLeadsCount)) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 bg-slate-50/60 p-3 rounded-xl flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">Pipeline Value</span>
-              <span className="font-extrabold text-slate-900">
-                {formatCurrency(leads.reduce((s, l) => s + l.estimatedValue, 0))}
-              </span>
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+              <span>Enquiry pipeline</span>
+              <span className="font-semibold text-slate-700">{totalLeadsCount} active</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Operations & Pending Invoices Row */}
+      {/* Analytics & Financial Chart */}
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <CardTitle>Financial Performance & Revenue Velocity</CardTitle>
+            <CardDescription>Billed invoices vs. operating expenditure breakdown</CardDescription>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#0F172A]" />
+              <span className="text-slate-600 font-medium">Billed Revenue</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-slate-300" />
+              <span className="text-slate-600 font-medium">Operating Expenses</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-5">
+          <div className="h-64 sm:h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: '#64748B', fontSize: 11 }} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: '#64748B', fontSize: 11 }}
+                  tickFormatter={(val) => `₹${val / 1000}k`}
+                />
+                <Tooltip
+                  cursor={{ fill: '#F8FAFC' }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs space-y-1">
+                          <p className="font-bold text-slate-300">{label}</p>
+                          <p className="text-white">Revenue: {formatCurrency(payload[0]?.value as number)}</p>
+                          <p className="text-slate-400">Expenses: {formatCurrency(payload[1]?.value as number)}</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="revenue" fill="#0F172A" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="expenses" fill="#CBD5E1" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Two-Column Section: Active Dispatch & Outstanding Collections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Moves Timeline */}
+        {/* Active Dispatch Moves */}
         <Card>
-          <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Truck className="w-4 h-4 text-indigo-600" />
-              <CardTitle className="text-xs font-bold text-slate-900">Upcoming Shifting Schedule</CardTitle>
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <CardTitle>Active Move Orders</CardTitle>
+              <CardDescription>Real-time vehicle and crew tracking</CardDescription>
             </div>
             <Button
               variant="ghost"
               size="xs"
               onClick={() => navigate('/bookings')}
-              className="text-indigo-600 hover:text-indigo-800"
+              rightIcon={<ArrowRight className="w-3 h-3" />}
             >
-              All Bookings →
+              View All
             </Button>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 divide-y divide-slate-100">
             {bookings.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">No active bookings scheduled.</div>
+              <div className="p-8 text-center text-slate-400 space-y-2">
+                <Truck className="w-8 h-8 mx-auto text-slate-300 stroke-1" />
+                <p className="text-xs font-semibold text-slate-600">No Move Orders Scheduled</p>
+                <p className="text-[11px] text-slate-400">Create a move order from an enquiry or quotation.</p>
+              </div>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {bookings.slice(0, 4).map((b) => (
-                  <div
-                    key={b.id}
-                    onClick={() => navigate('/bookings')}
-                    className="p-4 hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{getCustomerName(b.customerId)}</span>
-                        <span className="font-mono text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-semibold">
-                          #{b.bookingNumber}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span>{b.pickupLocation.split(',')[0]}</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
-                        <span>{b.dropLocation.split(',')[0]}</span>
-                      </p>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-[11px] font-bold text-slate-800 block">
-                        {formatDate(b.movingDate)}
+              bookings.slice(0, 5).map((booking) => (
+                <div
+                  key={booking.id}
+                  onClick={() => navigate('/bookings')}
+                  className="p-4 hover:bg-slate-50/80 cursor-pointer transition-colors flex items-center justify-between gap-4"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-slate-900 truncate">
+                        {getCustomerName(booking.customerId)}
                       </span>
-                      <Badge variant="brand" dot className="mt-1">
-                        {b.status}
-                      </Badge>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        #{booking.bookingNumber}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{booking.pickupLocation} → {booking.dropLocation}</span>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="text-right shrink-0 space-y-1">
+                    <Badge
+                      variant={
+                        booking.status === 'Completed'
+                          ? 'success'
+                          : booking.status === 'In Transit'
+                          ? 'warning'
+                          : 'brand'
+                      }
+                    >
+                      {booking.status}
+                    </Badge>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      {formatDate(booking.movingDate)}
+                    </p>
+                  </div>
+                </div>
+              ))
             )}
           </CardContent>
         </Card>
 
-        {/* Pending Invoices for Follow-up */}
+        {/* Outstanding Receivables */}
         <Card>
-          <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-indigo-600" />
-              <CardTitle className="text-xs font-bold text-slate-900">Pending Invoices</CardTitle>
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <CardTitle>Outstanding Invoices</CardTitle>
+              <CardDescription>Pending customer collections and balances</CardDescription>
             </div>
             <Button
               variant="ghost"
               size="xs"
               onClick={() => navigate('/invoices')}
-              className="text-indigo-600 hover:text-indigo-800"
+              rightIcon={<ArrowRight className="w-3 h-3" />}
             >
-              All Invoices →
+              View Invoices
             </Button>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 divide-y divide-slate-100">
             {outstandingInvoices.length === 0 ? (
-              <div className="p-8 text-center text-xs text-emerald-600 font-semibold">
-                ✓ All issued invoices have been settled in full!
+              <div className="p-8 text-center text-slate-400 space-y-2">
+                <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-500 stroke-1" />
+                <p className="text-xs font-semibold text-slate-600">All Invoices Settled</p>
+                <p className="text-[11px] text-slate-400">No overdue receivables or pending balances.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {outstandingInvoices.slice(0, 4).map((inv) => (
-                  <div
-                    key={inv.id}
-                    onClick={() => navigate('/invoices')}
-                    className="p-4 hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{getCustomerName(inv.customerId)}</span>
-                        <span className="font-mono text-[10px] text-slate-500">{inv.invoiceNumber}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        Due: {formatDate(inv.dueDate)} • Billed: {formatCurrency(inv.grandTotal)}
-                      </p>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded text-xs border border-amber-200 block">
-                        Due {formatCurrency(inv.balanceDue)}
+              outstandingInvoices.slice(0, 5).map((invoice) => (
+                <div
+                  key={invoice.id}
+                  onClick={() => navigate('/invoices')}
+                  className="p-4 hover:bg-slate-50/80 cursor-pointer transition-colors flex items-center justify-between gap-4"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-slate-900 truncate">
+                        {getCustomerName(invoice.customerId)}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {invoice.invoiceNumber}
                       </span>
                     </div>
+                    <p className="text-xs text-slate-500">
+                      Due: {formatDate(invoice.dueDate || invoice.date)}
+                    </p>
                   </div>
-                ))}
-              </div>
+
+                  <div className="text-right shrink-0 space-y-1">
+                    <div className="text-xs font-bold text-amber-800 tabular-nums">
+                      {formatCurrency(invoice.balanceDue)}
+                    </div>
+                    <Badge variant="warning">
+                      {invoice.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))
             )}
           </CardContent>
         </Card>

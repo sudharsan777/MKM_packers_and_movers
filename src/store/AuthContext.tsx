@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import {
   User,
+  setPersistence,
+  browserLocalPersistence,
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -49,16 +51,16 @@ export const getAuthErrorMessage = (errorCode: string): string => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const isAuthEnabled = Boolean(auth && isFirebaseConfigured());
+  const isAuthEnabled = Boolean(auth);
 
   useEffect(() => {
-    if (!auth || !isFirebaseConfigured()) {
+    if (!auth) {
       setUser(null);
       setLoading(false);
       return;
     }
 
-    // Subscribe to Firebase Auth state updates
+    // Subscribe to Firebase Auth state updates (waits for initial session restore from browser persistence)
     const unsubscribe = onAuthStateChanged(
       auth,
       (currentUser) => {
@@ -66,7 +68,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(false);
       },
       (error) => {
-        console.error('Firebase Auth state error:', error);
+        console.error('Firebase Auth state restore error:', error);
         setUser(null);
         setLoading(false);
       }
@@ -87,6 +89,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw new Error('Please enter your password.');
     }
 
+    // 1. Explicitly configure browserLocalPersistence BEFORE sign-in for permanent one-time login
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+    } catch (persistErr) {
+      console.warn('Firebase setPersistence notice:', persistErr);
+    }
+
+    // 2. Perform Firebase Email/Password Authentication
     await signInWithEmailAndPassword(auth, cleanEmail, password);
   };
 

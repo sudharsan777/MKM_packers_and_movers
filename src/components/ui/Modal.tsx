@@ -62,17 +62,17 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col max-h-[92vh] my-auto overflow-hidden animate-in zoom-in-95 duration-150',
+          'relative w-full bg-white rounded-2xl shadow-modal border border-slate-200/90 flex flex-col max-h-[92vh] my-auto overflow-hidden animate-in zoom-in-95 duration-150',
           maxWidthClasses[maxWidth]
         )}
         role="dialog"
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-indigo-50/20 to-white shrink-0">
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 bg-white shrink-0">
           <div>
-            <h3 className="text-base font-extrabold text-slate-900 tracking-tight leading-snug">{title}</h3>
-            {subtitle && <p className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+            <h3 className="text-base font-bold text-slate-900 tracking-tight leading-snug">{title}</h3>
+            {subtitle && <p className="text-xs text-slate-500 font-normal mt-0.5">{subtitle}</p>}
           </div>
           <button
             id="modal-close-btn"
@@ -87,9 +87,9 @@ export const Modal: React.FC<ModalProps> = ({
         {/* Scrollable Content */}
         <div className="p-6 overflow-y-auto flex-1">{children}</div>
 
-        {/* Optional Sticky Footer */}
+        {/* Sticky Footer */}
         {footer && (
-          <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
+          <div className="px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
             {footer}
           </div>
         )}

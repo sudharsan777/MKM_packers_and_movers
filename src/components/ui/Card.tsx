@@ -4,7 +4,7 @@ import { cn } from '../../utils';
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
   <div
     className={cn(
-      'bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03),0_6px_16px_0_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200 hover:border-slate-300',
+      'bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden transition-all duration-200 hover:border-slate-300/90',
       className
     )}
     {...props}

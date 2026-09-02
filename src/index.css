@@ -1,20 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   
-  --color-brand-50: #EEF2FF;
-  --color-brand-100: #E0E7FF;
-  --color-brand-500: #6366F1;
-  --color-brand-600: #4F46E5;
-  --color-brand-700: #4338CA;
-  --color-brand-800: #3730A3;
-  --color-brand-900: #312E81;
+  --color-brand-50: #F8FAFC;
+  --color-brand-100: #F1F5F9;
+  --color-brand-500: #0F172A;
+  --color-brand-600: #0B0F19;
+  --color-brand-700: #070A12;
+  --color-brand-800: #030508;
+  --color-brand-900: #020305;
   
-  --color-amber-500: #F59E0B;
-  --color-amber-600: #D97706;
+  --color-accent-500: #D97706;
+  --color-accent-600: #B45309;
 }
 
 :root {
@@ -28,45 +28,39 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  letter-spacing: -0.01em;
 }
 
-/* Modern Enterprise Gradients & Shadows */
-.bg-brand-gradient {
-  background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%);
-}
-
-.bg-amber-gradient {
-  background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%);
-}
-
-.bg-emerald-gradient {
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-}
-
+/* Premium Surface & Elevation Shadows */
 .bg-dark-sidebar {
   background: #0B0F19;
 }
 
-.shadow-brand {
-  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.25);
+.shadow-subtle {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
 }
 
-.shadow-brand-lg {
-  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.3), 0 8px 10px -6px rgba(79, 70, 229, 0.2);
+.shadow-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
-.shadow-amber-glow {
-  box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.25);
+.shadow-elevated {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
-.shadow-luxury-card {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 4px 12px 0 rgba(0, 0, 0, 0.02);
+.shadow-modal {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-/* Ultra-Clean Modern Scrollbars */
+/* Tabular Figures for Financials */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Precision Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {

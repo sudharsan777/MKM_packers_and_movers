@@ -1,50 +1,69 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Default: Deny all unauthenticated public read and write access
-    // Private business data is protected from anonymous internet clients.
+
+    // =========================================================================
+    // MKM PACKERS & MOVERS — FIRESTORE SECURITY RULES
+    // 
+    // SECURITY POLICY:
+    // 1. PUBLIC ACCESS IS STRICTLY PROHIBITED (allow read, write: if false for unauthenticated requests).
+    // 2. ONLY AUTHENTICATED USERS (request.auth != null) CAN READ OR WRITE BUSINESS DATA.
+    // 3. COVERS ALL REPOSITORY COLLECTIONS AND ANY NESTED SUBCOLLECTIONS.
+    // =========================================================================
+
+    // Global Authenticated Rule for all collections and subcollections
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
     }
 
-    // Authenticated access only (Requires verified user authentication)
+    // Explicit Root Collection Definitions:
+    
+    // 1. Customers Directory
     match /customers/{customerId} {
       allow read, write: if request.auth != null;
     }
 
+    // 2. Leads & Enquiries Pipeline
     match /leads/{leadId} {
       allow read, write: if request.auth != null;
     }
 
+    // 3. Moving Quotations & Estimates
     match /quotations/{quotationId} {
       allow read, write: if request.auth != null;
     }
 
+    // 4. Move Orders & Booking Dispatch
     match /bookings/{bookingId} {
       allow read, write: if request.auth != null;
     }
 
+    // 5. Commercial Tax Invoices
     match /invoices/{invoiceId} {
       allow read, write: if request.auth != null;
     }
 
+    // 6. Payments & Collections Ledger
     match /payments/{paymentId} {
       allow read, write: if request.auth != null;
     }
 
+    // 7. Operating Expenses
     match /expenses/{expenseId} {
       allow read, write: if request.auth != null;
     }
 
+    // 8. Company Configuration & Branding Settings
     match /settings/{docId} {
       allow read, write: if request.auth != null;
     }
 
+    // 9. Standard Moving Services & Pricing Rate Sheet
     match /services/{serviceId} {
       allow read, write: if request.auth != null;
     }
 
+    // 10. Atomic Sequential Numbering Counters (Invoices, Quotations)
     match /counters/{counterId} {
       allow read, write: if request.auth != null;
     }

@@ -4,9 +4,10 @@ import { useAuth } from '../../store/AuthContext';
 import { Truck } from 'lucide-react';
 
 export const ProtectedRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const { user, loading, isAuthEnabled } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
+  // 1. Loading state while Firebase checks authentication
   if (loading) {
     return (
       <div className="min-h-screen bg-[#070A12] flex flex-col items-center justify-center p-4">
@@ -39,10 +40,11 @@ export const ProtectedRoute: React.FC<{ children?: React.ReactNode }> = ({ child
     );
   }
 
-  // If Firebase Authentication is active and the user is not signed in, redirect to /login
-  if (isAuthEnabled && !user) {
+  // 2. If unauthenticated, redirect to /login
+  if (!user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
+  // 3. Render protected application
   return children ? <>{children}</> : <Outlet />;
 };

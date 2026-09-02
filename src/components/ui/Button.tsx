@@ -27,28 +27,28 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants = {
       primary:
-        'bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 text-white font-bold hover:from-indigo-700 hover:to-blue-700 active:scale-[0.98] shadow-md shadow-indigo-500/20 border border-indigo-500/30 focus-visible:ring-indigo-500/40',
-      amber:
-        'bg-gradient-to-r from-amber-500 via-amber-500 to-orange-500 text-white font-bold hover:from-amber-600 hover:to-orange-600 active:scale-[0.98] shadow-md shadow-amber-500/20 border border-amber-400 focus-visible:ring-amber-500/40',
-      emerald:
-        'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold hover:from-emerald-700 hover:to-emerald-800 active:scale-[0.98] shadow-md shadow-emerald-600/20 border border-emerald-500 focus-visible:ring-emerald-500/40',
+        'bg-[#0F172A] hover:bg-[#1E293B] text-white font-semibold shadow-subtle border border-slate-800 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-slate-900/30',
       accent:
-        'bg-slate-900 text-white font-bold hover:bg-slate-800 active:bg-slate-950 shadow-sm border border-slate-800 focus-visible:ring-slate-900/30',
+        'bg-[#D97706] hover:bg-[#B45309] text-white font-semibold shadow-subtle border border-amber-600 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-amber-500/30',
+      amber:
+        'bg-[#D97706] hover:bg-[#B45309] text-white font-semibold shadow-subtle border border-amber-600 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-amber-500/30',
+      emerald:
+        'bg-[#059669] hover:bg-[#047857] text-white font-semibold shadow-subtle border border-emerald-600 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500/30',
       secondary:
-        'bg-indigo-50 text-indigo-900 hover:bg-indigo-100/80 active:bg-indigo-200/80 border border-indigo-100 font-semibold focus-visible:ring-indigo-500/30',
+        'bg-white hover:bg-slate-50 text-slate-800 font-semibold border border-slate-200/90 shadow-subtle active:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-300',
       outline:
-        'bg-white text-slate-800 border border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 hover:text-slate-900 active:bg-slate-100 shadow-2xs font-semibold focus-visible:ring-slate-400/30',
+        'bg-transparent hover:bg-slate-100 text-slate-700 font-medium border border-slate-200 focus-visible:ring-2 focus-visible:ring-slate-300',
       ghost:
-        'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200 border border-transparent font-semibold focus-visible:ring-slate-400/30',
+        'bg-transparent hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-medium focus-visible:ring-2 focus-visible:ring-slate-300',
       danger:
-        'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 active:bg-rose-200 font-semibold focus-visible:ring-rose-400/30',
+        'bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200/80 active:bg-rose-200 focus-visible:ring-2 focus-visible:ring-rose-400/30',
     };
 
     const sizes = {
-      xs: 'h-7 px-2.5 text-[11px] gap-1.5 rounded-lg font-semibold',
-      sm: 'h-8.5 px-3 text-xs gap-1.5 rounded-lg font-bold',
-      md: 'h-9.5 px-4 text-xs gap-2 rounded-xl font-bold',
-      lg: 'h-11 px-5 text-sm gap-2.5 rounded-xl font-bold',
+      xs: 'h-7 px-2.5 text-[11px] gap-1.5 rounded-lg',
+      sm: 'h-8 px-3 text-xs gap-1.5 rounded-lg',
+      md: 'h-9 px-3.5 text-xs gap-2 rounded-xl',
+      lg: 'h-10.5 px-4.5 text-sm gap-2.5 rounded-xl',
     };
 
     return (
@@ -56,7 +56,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center select-none cursor-pointer transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+          'inline-flex items-center justify-center select-none cursor-pointer transition-all duration-150 focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
           variants[variant],
           sizes[size],
           className
