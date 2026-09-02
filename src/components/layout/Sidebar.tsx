@@ -13,9 +13,11 @@ import {
   PieChart,
   Download,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { useAppContext } from '../../store/AppContext';
+import { useAuth } from '../../store/AuthContext';
 
 interface NavGroup {
   group: string;
@@ -33,6 +35,7 @@ export const Sidebar: React.FC<{
   onOpenPwaModal?: () => void;
 }> = ({ onCloseMobile, onOpenPwaModal }) => {
   const { settings, leads, bookings, invoices } = useAppContext();
+  const { user, isAuthEnabled, logout } = useAuth();
 
   const activeLeadsCount = leads.filter((l) => l.status === 'New' || l.status === 'Follow-up').length;
   const activeBookingsCount = bookings.filter(
@@ -163,7 +166,7 @@ export const Sidebar: React.FC<{
         ))}
       </div>
 
-      {/* Bottom Profile & PWA Helper */}
+      {/* Bottom Profile & Logout */}
       <div className="p-3 border-t border-slate-800/80 shrink-0 bg-[#070A12] space-y-2">
         {onOpenPwaModal && (
           <button
@@ -179,19 +182,39 @@ export const Sidebar: React.FC<{
           </button>
         )}
 
-        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950 border border-slate-800/80 text-xs">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
-              HQ
+        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs shrink-0">
+                HQ
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-slate-200 truncate">
+                  {user?.email || 'Enterprise Ops'}
+                </p>
+                <p className="text-[10px] text-amber-400/90 font-mono truncate">{settings.phone || '09840546766'}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold text-slate-200 truncate">Dispatch Control</p>
-              <p className="text-[10px] text-amber-400/90 font-mono truncate">{settings.phone || '09840546766'}</p>
-            </div>
+            <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-1.5 py-0.5 rounded shrink-0">
+              Live
+            </span>
           </div>
-          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-1.5 py-0.5 rounded">
-            Live
-          </span>
+
+          {isAuthEnabled && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm('Sign out of MKM Packers & Movers?')) {
+                  await logout();
+                }
+              }}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-slate-900 hover:bg-rose-950/70 border border-slate-800 hover:border-rose-800/80 text-slate-400 hover:text-rose-300 text-[11px] font-bold rounded-lg transition-all cursor-pointer"
+              title="Sign Out"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>Sign Out</span>
+            </button>
+          )}
         </div>
       </div>
     </aside>

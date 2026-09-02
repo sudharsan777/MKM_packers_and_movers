@@ -34,6 +34,7 @@ import {
   counterService,
 } from '../services';
 import { isFirebaseConfigured, db } from '../lib/firebase';
+import { useAuth } from './AuthContext';
 import {
   determineInvoiceStatus,
   calculateBalanceDue,
@@ -110,6 +111,7 @@ interface AppContextType extends AppState {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [settings, setSettings] = useState<CompanySettings>(initialSettings);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [servicePrices, setServicePrices] = useState<ServicePrice[]>([]);
@@ -200,7 +202,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     reloadFromFirestore();
-  }, []);
+  }, [user]);
 
   // ==================== TRANSACTION-BASED NUMBER COUNTERS ====================
   const generateNextInvoiceNumber = async (): Promise<string> => {

@@ -20,11 +20,14 @@ import {
   AlertCircle,
   Clock,
   ExternalLink,
+  LogOut,
+  User,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { PwaInstallModal } from '../ui/PwaInstallModal';
 import { GlobalSearchModal } from '../ui/GlobalSearchModal';
 import { useAppContext } from '../../store/AppContext';
+import { useAuth } from '../../store/AuthContext';
 import { NotificationService } from '../../services/notification.service';
 import { cn } from '../../utils';
 
@@ -32,6 +35,7 @@ export const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { leads, bookings, invoices, quotations, settings } = useAppContext();
+  const { user, logout, isAuthEnabled } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
@@ -341,6 +345,33 @@ export const Layout = () => {
                   </>
                 )}
               </div>
+
+              {/* User Account & Sign Out (Header) */}
+              {isAuthEnabled && user && (
+                <div className="hidden sm:flex items-center pl-2 border-l border-slate-200 gap-2">
+                  <div className="flex items-center gap-2 bg-slate-100/90 py-1 px-2.5 rounded-xl border border-slate-200 text-xs">
+                    <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px]">
+                      {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="font-semibold text-slate-700 max-w-[120px] truncate text-[11px]" title={user.email || ''}>
+                      {user.email}
+                    </span>
+                  </div>
+
+                  <button
+                    id="btn-header-signout"
+                    onClick={async () => {
+                      if (window.confirm('Sign out of MKM Packers & Movers?')) {
+                        await logout();
+                      }
+                    }}
+                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                    title="Sign Out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
