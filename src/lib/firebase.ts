@@ -18,7 +18,11 @@ export const isFirebaseConfigured = (): boolean => {
       firebaseConfig.projectId &&
       firebaseConfig.projectId !== 'YOUR_PROJECT_ID' &&
       firebaseConfig.appId &&
-      firebaseConfig.appId !== 'YOUR_APP_ID'
+      firebaseConfig.appId !== 'YOUR_APP_ID' &&
+      firebaseConfig.authDomain &&
+      firebaseConfig.authDomain !== 'YOUR_AUTH_DOMAIN' &&
+      firebaseConfig.storageBucket &&
+      firebaseConfig.storageBucket !== 'YOUR_STORAGE_BUCKET'
   );
 };
 
