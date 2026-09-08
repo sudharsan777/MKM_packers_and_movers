@@ -86,6 +86,14 @@ export interface QuotationItem {
 export interface Quotation extends BaseEntity {
   quotationNumber: string;
   customerId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  toDetails?: string;
+  subject?: string;
+  introParagraph?: string;
+  termsList?: string[];
   leadId?: string;
   date: string;
   validUntil: string;
@@ -131,10 +139,15 @@ export interface Invoice extends BaseEntity {
   bookingId?: string;
   date: string;
   dueDate: string;
+  poNumber?: string;
+  gstType?: string; // 'NILL' or GSTIN
   items: QuotationItem[];
   subtotal: number;
   discount: number;
   tax: number;
+  centralTax?: number;
+  stateTax?: number;
+  otherCharges?: number;
   grandTotal: number;
   amountPaid: number;
   balanceDue: number;
@@ -146,6 +159,7 @@ export interface Invoice extends BaseEntity {
   customerPhone?: string;
   customerEmail?: string;
   customerGst?: string;
+  billToDetails?: string;
   moveFromAddress?: string;
   moveFromCityStatePin?: string;
   moveToName?: string;

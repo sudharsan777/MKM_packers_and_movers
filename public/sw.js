@@ -1,17 +1,14 @@
-const CACHE_VERSION = 'mkm-pwa-v1';
+const CACHE_VERSION = 'mkm-pwa-v2';
 const CACHE_NAME = `mkm-cache-${CACHE_VERSION}`;
 
-// Static Application Shell Assets
+// Static Application Shell Assets (physical files only)
 const APP_SHELL = [
   '/',
-  '/dashboard',
   '/index.html',
   '/manifest.json',
   '/logo.png',
   '/icon-192.png',
   '/icon-512.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
 ];
 
 // Domains and endpoints to NEVER intercept or cache
@@ -32,7 +29,7 @@ self.addEventListener('install', (event) => {
       .open(CACHE_NAME)
       .then((cache) => {
         return cache.addAll(APP_SHELL).catch((err) => {
-          console.warn('[SW] App Shell pre-caching non-fatal warning:', err);
+          console.warn('[SW] App Shell pre-caching notice:', err);
         });
       })
       .then(() => self.skipWaiting())
@@ -65,7 +62,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Fetch Event - Network First with offline fallback for navigation, cache-first for local static assets
+// Fetch Event - Network First with SPA index.html fallback for navigation
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = request.url;
@@ -75,20 +72,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Pass-through for Firebase Firestore, Storage, and external cloud APIs
+  // 2. Pass-through for Firebase Firestore, Auth, Storage, and external cloud APIs
   const isExcluded = NEVER_CACHE_PATTERNS.some((pattern) => url.includes(pattern));
   if (isExcluded || !url.startsWith('http')) {
     return;
   }
 
-  // 3. SPA Navigation requests (HTML navigation)
+  // 3. SPA Navigation requests (HTML navigation for routes like /dashboard, /invoices, /login)
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => {
-        return caches.match('/index.html').then((cachedIndex) => {
-          return cachedIndex || fetch(request);
-        });
-      })
+      fetch(request)
+        .then((networkResponse) => {
+          // If server returns a 404 for a client route, fallback to index.html
+          if (!networkResponse || networkResponse.status === 404) {
+            return caches.match('/index.html').then((cached) => cached || networkResponse);
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match('/index.html').then((cachedIndex) => {
+            return cachedIndex || fetch('/index.html');
+          });
+        })
     );
     return;
   }

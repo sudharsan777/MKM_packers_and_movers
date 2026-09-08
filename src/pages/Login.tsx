@@ -36,10 +36,10 @@ export const Login = () => {
   const [resetStatus, setResetStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // If user is already authenticated, redirect to /dashboard
+  // If user is already authenticated, redirect to /invoices
   useEffect(() => {
     if (!loading && user) {
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      const from = (location.state as any)?.from?.pathname || '/invoices';
       navigate(from, { replace: true });
     }
   }, [user, loading, navigate, location]);
@@ -56,7 +56,7 @@ export const Login = () => {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      const from = (location.state as any)?.from?.pathname || '/invoices';
       navigate(from, { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);

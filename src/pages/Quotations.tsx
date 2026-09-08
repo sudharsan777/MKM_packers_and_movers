@@ -1,60 +1,45 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Badge, Input, Select, Textarea } from '../components/ui/Input';
+import { Input, Textarea } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
 import { useToast } from '../components/ui/Toast';
 import { useAppContext } from '../store/AppContext';
-import { formatDate, formatCurrency } from '../utils';
 import {
   Search,
   Plus,
-  Filter,
   FileText,
   Download,
-  Share2,
   Printer,
   Trash2,
-  PlusCircle,
-  CheckCircle2,
-  Truck,
-  MessageCircle,
   Eye,
-  Calendar,
-  MapPin,
-  Sparkles,
-  ArrowRight,
-  LayoutGrid,
-  List,
+  MessageCircle,
   Edit3,
-  Phone,
-  PhoneCall,
-  RotateCcw,
+  Building,
+  PlusCircle,
+  X,
+  FileCheck,
 } from 'lucide-react';
-import { Quotation, QuotationItem, PropertyType } from '../types';
-import { generateQuotationPDF } from '../utils/pdfExport';
+import { Quotation, QuotationItem, Invoice } from '../types';
+import { generateQuotationPDF, formatRupeeDoc, formatQuotationDate } from '../utils/pdfExport';
+import { MKM_LOGO_BASE64 } from '../assets/logo';
 
 export const Quotations = () => {
   const navigate = useNavigate();
   const {
     quotations,
-    customers,
-    servicePrices,
     settings,
     addQuotation,
     updateQuotation,
     deleteQuotation,
     generateNextQuotationNumber,
-    addBooking,
+    addInvoice,
+    generateNextInvoiceNumber,
   } = useAppContext();
   const { success, error: toastError } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -62,1124 +47,850 @@ export const Quotations = () => {
   const [selectedQuote, setSelectedQuote] = useState<Quotation | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
-  // Form State
-  const [customerId, setCustomerId] = useState(customers[0]?.id || '');
-  const [customCustomerName, setCustomCustomerName] = useState('');
-  const [customCustomerPhone, setCustomCustomerPhone] = useState('');
-  const [movingDate, setMovingDate] = useState(
-    new Date(Date.now() + 4 * 86400000).toISOString().split('T')[0]
-  );
-  const [validUntil, setValidUntil] = useState(
-    new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0]
-  );
-  const [pickupAddress, setPickupAddress] = useState('');
-  const [dropAddress, setDropAddress] = useState('');
-  const [propertyType, setPropertyType] = useState<PropertyType>('2 BHK');
-  const [floor, setFloor] = useState('Ground Floor');
-  const [vehicleType, setVehicleType] = useState('14ft Closed Container Truck');
-  const [notes, setNotes] = useState('Includes dedicated closed truck, bubble packaging, and trained handling crew.');
+  // Form state matching physical quotation
+  const [quotationNumber, setQuotationNumber] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Recipient "To" details
+  const [customerName, setCustomerName] = useState('The Executive Engineer');
+  const [divisionDept, setDivisionDept] = useState('AOBM');
+  const [organizationAddress, setOrganizationAddress] = useState(
+    'Chennai Metropolitan Water Supply\nChennai 600028.'
+  );
+  const [customerPhone, setCustomerPhone] = useState('');
+
+  // Subject & Intro paragraph
+  const [subject, setSubject] = useState(
+    "Sub: Shifting of OFFICE FURNITURE'S FROM AMMA MALIGAI CHENNAI CENTRAL TO CMWSSB HEAD OFFICE, CHINTADRIPET, Chennai."
+  );
+  const [introParagraph, setIntroParagraph] = useState(
+    'Kindly refer to our discussion regarding the above subject. We are giving below here with our quotation and other terms and conditions. Hope you will find our quotation competitive and we assure for the best service. The scope of work would be packing and moving goods'
+  );
+
+  // Particulars items
   const [items, setItems] = useState<QuotationItem[]>([
     {
       id: '1',
-      service: 'Transportation & Dedicated Freight Charges',
-      description: 'Dedicated closed container vehicle with door-to-door transit',
+      service: 'PACKING CHARGES, PACKING MATERIALS, TRANSPORT, LOADING CHARGES AND UNLOADING CHARGES.',
+      description: '',
       qty: 1,
-      unitPrice: 12000,
+      unitPrice: 14000,
       discount: 0,
-      amount: 12000,
-    },
-    {
-      id: '2',
-      service: 'Handling, Loading & Labour Charges',
-      description: 'Trained professional handlers for safe loading & unloading',
-      qty: 1,
-      unitPrice: 3500,
-      discount: 0,
-      amount: 3500,
-    },
-    {
-      id: '3',
-      service: 'Packing Materials & Professional Packing',
-      description: 'Standard household bubble wrapping, stretch film & boxes',
-      qty: 1,
-      unitPrice: 2500,
-      discount: 0,
-      amount: 2500,
+      amount: 14000,
     },
   ]);
 
-  const [discountAmount, setDiscountAmount] = useState('0');
-  const [includeTax, setIncludeTax] = useState(false);
+  // Terms & Conditions list
+  const defaultTermsList = [
+    'Payment: 100% to be paid at the time of loading.',
+    'This quote is valid for 14 days from this day',
+    'Rate will be varied if packing material or load exceed at the time of packing and movement.',
+    'Insurance 2% of declared value.',
+    'Maximum load 1 tons to 1.5 tons only will be loaded',
+  ];
+  const [termsList, setTermsList] = useState<string[]>(defaultTermsList);
 
-  const getCustomer = (id: string) => customers.find((c) => c.id === id);
-  const getCustomerName = (q: Quotation) => {
-    const cust = getCustomer(q.customerId);
-    return cust?.name || 'Customer';
-  };
-  const getCustomerPhone = (q: Quotation) => {
-    const cust = getCustomer(q.customerId);
-    return cust?.phone || '';
-  };
-
-  const calculateSubtotal = (itemList: QuotationItem[]) => {
-    return itemList.reduce((sum, item) => sum + (item.amount || 0), 0);
-  };
-
-  const handleItemChange = (index: number, field: keyof QuotationItem, value: any) => {
-    const updated = [...items];
-    const item = { ...updated[index], [field]: value };
-    if (field === 'qty' || field === 'unitPrice' || field === 'discount') {
-      const q = field === 'qty' ? Math.max(1, Number(value) || 1) : item.qty;
-      const p = field === 'unitPrice' ? Number(value) || 0 : item.unitPrice;
-      const d = field === 'discount' ? Number(value) || 0 : item.discount;
-      item.qty = q;
-      item.unitPrice = p;
-      item.discount = d;
-      item.amount = Math.max(0, q * p - d);
-    }
-    updated[index] = item;
-    setItems(updated);
-  };
-
-  // Quick Preset Add
-  const handleAddPresetItem = (serviceName: string, defaultRate: number, defaultDesc: string) => {
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString() + Math.random().toString().slice(2, 5),
-        service: serviceName,
-        description: defaultDesc,
-        qty: 1,
-        unitPrice: defaultRate,
-        discount: 0,
-        amount: defaultRate,
-      },
-    ]);
-  };
-
-  const handleRemoveItem = (index: number) => {
-    if (items.length <= 1) {
-      toastError('Cannot Remove', 'Quotation must have at least one line item.');
-      return;
-    }
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const subtotal = calculateSubtotal(items);
-  const discountVal = Number(discountAmount) || 0;
-  const taxableAmount = Math.max(0, subtotal - discountVal);
-  const tax = includeTax ? Math.round(taxableAmount * (settings.taxRate / 100)) : 0;
-  const grandTotal = taxableAmount + tax;
-
-  const handleOpenCreateModal = () => {
+  // Open modal for new quotation
+  const handleOpenAdd = async () => {
     setEditingQuoteId(null);
-    if (customers.length > 0) setCustomerId(customers[0].id);
-    setMovingDate(new Date(Date.now() + 4 * 86400000).toISOString().split('T')[0]);
-    setValidUntil(new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0]);
-    setPickupAddress('');
-    setDropAddress('');
-    setPropertyType('2 BHK');
-    setFloor('Ground Floor');
-    setVehicleType('14ft Closed Container Truck');
-    setNotes('Includes dedicated closed truck, bubble packaging, and trained handling crew.');
+    try {
+      const nextNum = await generateNextQuotationNumber();
+      setQuotationNumber(nextNum);
+    } catch {
+      setQuotationNumber(`QT-${Date.now().toString().slice(-4)}`);
+    }
+    setDate(new Date().toISOString().split('T')[0]);
+    setCustomerName('The Executive Engineer');
+    setDivisionDept('AOBM');
+    setOrganizationAddress('Chennai Metropolitan Water Supply\nChennai 600028.');
+    setCustomerPhone('');
+    setSubject(
+      "Sub: Shifting of OFFICE FURNITURE'S FROM AMMA MALIGAI CHENNAI CENTRAL TO CMWSSB HEAD OFFICE, CHINTADRIPET, Chennai."
+    );
+    setIntroParagraph(
+      'Kindly refer to our discussion regarding the above subject. We are giving below here with our quotation and other terms and conditions. Hope you will find our quotation competitive and we assure for the best service. The scope of work would be packing and moving goods'
+    );
     setItems([
       {
         id: '1',
-        service: 'Transportation & Dedicated Freight Charges',
-        description: 'Dedicated closed container vehicle with door-to-door transit',
+        service: 'PACKING CHARGES, PACKING MATERIALS, TRANSPORT, LOADING CHARGES AND UNLOADING CHARGES.',
+        description: '',
         qty: 1,
-        unitPrice: 12000,
+        unitPrice: 14000,
         discount: 0,
-        amount: 12000,
-      },
-      {
-        id: '2',
-        service: 'Handling, Loading & Labour Charges',
-        description: 'Trained professional handlers for safe loading & unloading',
-        qty: 1,
-        unitPrice: 3500,
-        discount: 0,
-        amount: 3500,
-      },
-      {
-        id: '3',
-        service: 'Packing Materials & Professional Packing',
-        description: 'Standard household bubble wrapping, stretch film & boxes',
-        qty: 1,
-        unitPrice: 2500,
-        discount: 0,
-        amount: 2500,
+        amount: 14000,
       },
     ]);
-    setDiscountAmount('0');
-    setIncludeTax(false);
+    setTermsList(defaultTermsList);
     setIsAddModalOpen(true);
   };
 
-  const handleOpenEditModal = (q: Quotation) => {
+  // Open modal for editing quotation
+  const handleOpenEdit = (q: Quotation) => {
     setEditingQuoteId(q.id);
-    setCustomerId(q.customerId);
-    setMovingDate(q.movingDate);
-    setValidUntil(q.validUntil);
-    setPickupAddress(q.pickupAddress);
-    setDropAddress(q.dropAddress);
-    setPropertyType(q.propertyType || '2 BHK');
-    setFloor(q.floor || 'Ground Floor');
-    setVehicleType(q.vehicleType || '14ft Closed Container Truck');
-    setNotes(q.notes || '');
-    setItems(q.items.length > 0 ? q.items : [
-      {
-        id: '1',
-        service: 'Relocation & Handling Charges',
-        description: 'Door-to-door relocation estimate',
-        qty: 1,
-        unitPrice: q.grandTotal,
-        discount: 0,
-        amount: q.grandTotal,
-      },
-    ]);
-    setDiscountAmount(q.discount.toString());
-    setIncludeTax(q.tax > 0);
+    setQuotationNumber(q.quotationNumber);
+    setDate(q.date);
+    setCustomerName(q.customerName || 'The Executive Engineer');
+
+    if (q.toDetails) {
+      const lines = q.toDetails.split('\n');
+      setCustomerName(lines[0] || q.customerName || '');
+      setDivisionDept(lines[1] || '');
+      setOrganizationAddress(lines.slice(2).join('\n') || '');
+    } else {
+      setDivisionDept('');
+      setOrganizationAddress(q.dropAddress || '');
+    }
+
+    setCustomerPhone(q.customerPhone || '');
+    setSubject(
+      q.subject ||
+        `Sub: Shifting of OFFICE FURNITURE'S FROM ${q.pickupAddress || 'Origin'} TO ${q.dropAddress || 'Destination'}.`
+    );
+    setIntroParagraph(
+      q.introParagraph ||
+        'Kindly refer to our discussion regarding the above subject. We are giving below here with our quotation and other terms and conditions. Hope you will find our quotation competitive and we assure for the best service. The scope of work would be packing and moving goods'
+    );
+    setItems(
+      q.items && q.items.length > 0
+        ? q.items
+        : [
+            {
+              id: '1',
+              service:
+                'PACKING CHARGES, PACKING MATERIALS, TRANSPORT, LOADING CHARGES AND UNLOADING CHARGES.',
+              description: '',
+              qty: 1,
+              unitPrice: q.grandTotal || 14000,
+              discount: 0,
+              amount: q.grandTotal || 14000,
+            },
+          ]
+    );
+    setTermsList(q.termsList && q.termsList.length > 0 ? q.termsList : defaultTermsList);
     setIsAddModalOpen(true);
   };
 
+  // Calculate grand total
+  const calculateTotal = () => {
+    return items.reduce((acc, item) => acc + (Number(item.amount) || 0), 0);
+  };
+
+  // Save quotation to Firestore
   const handleSaveQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pickupAddress.trim() || !dropAddress.trim()) {
-      toastError('Missing Fields', 'Please enter pickup and drop addresses.');
+    if (!customerName.trim()) {
+      toastError('Validation Error', 'Please enter customer / attention name.');
       return;
     }
 
+    const total = calculateTotal();
+    const toDetails = [customerName.trim(), divisionDept.trim(), organizationAddress.trim()]
+      .filter(Boolean)
+      .join('\n');
+
+    const quotationPayload: Quotation = {
+      id: editingQuoteId || `qt-${Date.now()}`,
+      quotationNumber: quotationNumber.trim() || `QT-${Date.now().toString().slice(-4)}`,
+      customerId: 'custom-client',
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerEmail: '',
+      customerAddress: organizationAddress.trim(),
+      toDetails,
+      subject: subject.trim(),
+      introParagraph: introParagraph.trim(),
+      termsList,
+      date,
+      validUntil: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      movingDate: date,
+      pickupAddress: '',
+      dropAddress: organizationAddress.trim(),
+      propertyType: 'Office',
+      floor: 'Ground Floor',
+      lift: true,
+      parking: true,
+      distance: '',
+      vehicleType: '14ft Closed Container',
+      items,
+      subtotal: total,
+      discount: 0,
+      tax: 0,
+      grandTotal: total,
+      notes: termsList.join('\n'),
+      status: 'Sent',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
     try {
       if (editingQuoteId) {
-        const existing = quotations.find((q) => q.id === editingQuoteId);
-        const updated: Quotation = {
-          id: editingQuoteId,
-          quotationNumber: existing?.quotationNumber || `QUO-${Date.now().toString().slice(-4)}`,
-          customerId,
-          date: existing?.date || new Date().toISOString().split('T')[0],
-          validUntil,
-          movingDate,
-          pickupAddress: pickupAddress.trim(),
-          dropAddress: dropAddress.trim(),
-          propertyType,
-          floor,
-          lift: true,
-          parking: true,
-          distance: 'Direct Move',
-          vehicleType,
-          items,
-          subtotal,
-          discount: discountVal,
-          tax,
-          grandTotal,
-          notes,
-          status: existing?.status || 'Sent',
-          createdAt: existing?.createdAt || new Date().toISOString(),
-        };
-        await updateQuotation(updated);
-        success('Quotation Updated', `Quotation ${updated.quotationNumber} updated.`);
+        await updateQuotation(quotationPayload);
+        success('Quotation Updated', `Quotation ${quotationPayload.quotationNumber} updated.`);
       } else {
-        let newQuoteNum = `${settings.quotationPrefix || 'QT-'}${Date.now().toString().slice(-4)}`;
-        try {
-          newQuoteNum = await generateNextQuotationNumber();
-        } catch (e) {
-          console.warn('Fallback numbering for quotation:', e);
-        }
-
-        const newQuotation: Quotation = {
-          id: `quote-${Date.now()}`,
-          quotationNumber: newQuoteNum,
-          customerId,
-          date: new Date().toISOString().split('T')[0],
-          validUntil,
-          movingDate,
-          pickupAddress: pickupAddress.trim(),
-          dropAddress: dropAddress.trim(),
-          propertyType,
-          floor,
-          lift: true,
-          parking: true,
-          distance: 'Direct Move',
-          vehicleType,
-          items,
-          subtotal,
-          discount: discountVal,
-          tax,
-          grandTotal,
-          notes,
-          status: 'Sent',
-          createdAt: new Date().toISOString(),
-        };
-        await addQuotation(newQuotation);
-        success('Quotation Created', `Quotation ${newQuoteNum} generated.`);
+        await addQuotation(quotationPayload);
+        success('Quotation Stored', `Quotation ${quotationPayload.quotationNumber} saved to Firestore.`);
       }
       setIsAddModalOpen(false);
     } catch (err: any) {
-      toastError('Unable to Save Quotation', err?.message || 'Unable to save. Please check your connection and try again.');
+      toastError('Save Error', err?.message || 'Could not save quotation.');
     }
   };
 
-  const handleUpdateStatus = (q: Quotation, newStatus: Quotation['status']) => {
-    const updated = { ...q, status: newStatus };
-    updateQuotation(updated);
-    if (selectedQuote?.id === q.id) setSelectedQuote(updated);
-    success('Status Updated', `Quotation #${q.quotationNumber} marked as ${newStatus}.`);
-  };
+  // Convert Quotation into Tax Invoice
+  const handleConvertToInvoice = async (q: Quotation) => {
+    try {
+      const nextInvNum = await generateNextInvoiceNumber();
+      const newInvoice: Invoice = {
+        id: `inv-${Date.now()}`,
+        invoiceNumber: nextInvNum,
+        customerId: q.customerId || 'custom-client',
+        customerName: q.customerName || 'The Executive Engineer',
+        customerPhone: q.customerPhone || '',
+        customerEmail: '',
+        customerGst: 'NILL',
+        gstType: 'NILL',
+        poNumber: '',
+        billToDetails: q.toDetails || `${q.customerName}\nAOBM\n${q.dropAddress}`,
+        moveToAddress: q.dropAddress || '',
+        date: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
+        quotationId: q.id,
+        items:
+          q.items && q.items.length > 0
+            ? q.items
+            : [
+                {
+                  id: '1',
+                  service: "Transportation charges for Office Furniture's",
+                  description:
+                    'Amma Maaligai Chennai Central to CMWSSB Head Office Chintadripet\nThe rate inclusive of packing material, loading and un-loading charges',
+                  qty: 1,
+                  unitPrice: q.grandTotal,
+                  discount: 0,
+                  amount: q.grandTotal,
+                },
+              ],
+        subtotal: q.grandTotal,
+        discount: 0,
+        tax: 0,
+        otherCharges: 0,
+        grandTotal: q.grandTotal,
+        amountPaid: q.grandTotal,
+        balanceDue: 0,
+        status: 'Paid',
+        notes: 'Converted from Quotation ' + q.quotationNumber,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-  const handleConvertToBooking = (quote: Quotation) => {
-    const bookingNum = `BKG-${Date.now().toString().slice(-4)}`;
-    const advance = Math.round(quote.grandTotal * 0.25);
-    const balance = quote.grandTotal - advance;
-
-    addBooking({
-      id: `bkg-${Date.now()}`,
-      bookingNumber: bookingNum,
-      customerId: quote.customerId,
-      quotationId: quote.id,
-      movingDate: quote.movingDate,
-      pickupLocation: quote.pickupAddress,
-      dropLocation: quote.dropAddress,
-      vehicle: quote.vehicleType,
-      driver: 'To be assigned',
-      workers: 3,
-      status: 'Confirmed',
-      totalAmount: quote.grandTotal,
-      advanceAmount: advance,
-      balanceAmount: balance,
-      notes: `Generated from Quotation ${quote.quotationNumber}. ${quote.notes}`,
-      createdAt: new Date().toISOString(),
-    });
-
-    updateQuotation({ ...quote, status: 'Accepted' });
-    success('Order Created', `Booking order #${bookingNum} created from quotation.`);
-    setIsPreviewModalOpen(false);
-    navigate('/bookings');
-  };
-
-  const handleDownloadPDF = (quote: Quotation) => {
-    const customer = getCustomer(quote.customerId);
-    generateQuotationPDF(quote, customer, settings);
-    const custName = (customer?.name || 'Customer').replace(/[^a-zA-Z0-9_-]/g, '_');
-    success('PDF Downloaded', `${custName}-${quote.quotationNumber}.pdf downloaded.`);
-  };
-
-  const handleShareWhatsApp = (quote: Quotation) => {
-    const customer = getCustomer(quote.customerId);
-    const phone = (customer?.whatsapp || customer?.phone || '').replace(/[^0-9]/g, '');
-    const text = `*RELOCATION QUOTATION — ${settings.companyName.toUpperCase()}*\n\nDear ${customer?.name},\nHere is your shifting estimate *#${quote.quotationNumber}*:\n\n📅 *Moving Date:* ${formatDate(quote.movingDate)}\n📍 *Pickup:* ${quote.pickupAddress}\n📍 *Drop:* ${quote.dropAddress}\n🏠 *Property:* ${quote.propertyType}\n🚛 *Vehicle:* ${quote.vehicleType}\n\n💰 *Total Estimate: ${formatCurrency(quote.grandTotal)}*\n📅 *Valid Until:* ${formatDate(quote.validUntil)}\n\nReply to confirm your truck booking slot!\n\n📞 ${settings.phone}\n${settings.companyName}`;
-    const finalPhone = phone.length === 10 ? '91' + phone : phone;
-    window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  const handleDeleteQuotation = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this quotation?')) {
-      deleteQuotation(id);
-      success('Quotation Deleted', 'The quotation has been removed.');
-      if (selectedQuote?.id === id) setIsPreviewModalOpen(false);
+      await addInvoice(newInvoice);
+      success('Converted to Invoice', `Created Invoice ${newInvoice.invoiceNumber} from Quotation ${q.quotationNumber}`);
+      navigate('/invoices');
+    } catch (err: any) {
+      toastError('Conversion Failed', err?.message || 'Unable to generate invoice from quotation.');
     }
   };
 
-  const filteredQuotes = quotations.filter((q) => {
-    const cust = getCustomer(q.customerId);
-    const matchesSearch =
+  // Delete quotation
+  const handleDelete = async (id: string, number: string) => {
+    if (window.confirm(`Delete Quotation ${number}?`)) {
+      try {
+        await deleteQuotation(id);
+        success('Quotation Deleted', `Quotation ${number} removed.`);
+      } catch (err: any) {
+        toastError('Delete Failed', err?.message || 'Unable to delete quotation.');
+      }
+    }
+  };
+
+  // WhatsApp Share
+  const handleShareWhatsApp = (q: Quotation) => {
+    const phone = q.customerPhone ? q.customerPhone.replace(/[^0-9]/g, '') : '';
+    const message = `*QUOTATION: ${q.quotationNumber}*
+MKM PACKERS AND MOVERS
+---------------------------------
+Date: ${formatQuotationDate(q.date)}
+${q.subject || ''}
+
+*Total Estimated Rate: Rs. ${q.grandTotal.toLocaleString('en-IN')}/-*
+
+TERMS & CONDITIONS:
+1. Payment: 100% to be paid at the time of loading.
+2. This quote is valid for 14 days.
+3. Insurance 2% of declared value.
+
+We assure for the best service!
+MKM Packers & Movers Hotline: ${settings.phone || '98405 46766, 93423 06048'}`;
+
+    const url = phone
+      ? `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(message)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
+  // Filtered quotations (search only)
+  const filteredQuotations = quotations.filter((q) => {
+    return (
       q.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cust?.name && cust.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (cust?.phone && cust.phone.includes(searchTerm)) ||
-      q.pickupAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.dropAddress.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
-    return matchesSearch && matchesStatus;
+      (q.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.toDetails || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.subject || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.customerPhone || '').includes(searchTerm)
+    );
   });
 
-  const totalQuotesValue = quotations.reduce((sum, q) => sum + q.grandTotal, 0);
-  const acceptedQuotesCount = quotations.filter((q) => q.status === 'Accepted').length;
-
   return (
-    <div className="space-y-4">
-      {/* ULTRA SLIM MINI STATS BAR */}
-      <div className="bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-          <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Total Quotes:</span>
-          <span className="font-extrabold text-slate-900">{quotations.length}</span>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Accepted Deals:</span>
-          <span className="font-extrabold text-emerald-700">{acceptedQuotesCount}</span>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-amber-500" />
-          <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Pipeline Value:</span>
-          <span className="font-extrabold text-amber-900">{formatCurrency(totalQuotesValue)}</span>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-        <div className="flex items-center gap-1.5 text-slate-500 font-semibold text-[11px]">
-          <span>Pending:</span>
-          <span className="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded-full">
-            {quotations.filter((q) => q.status === 'Sent' || q.status === 'Draft').length}
-          </span>
-        </div>
-      </div>
-
-      {/* Header Search & Actions */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          {/* Search bar */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              id="quotations-search-input"
-              type="text"
-              placeholder="Search by quote #, customer, route..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs placeholder:text-slate-400 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-            />
+    <div className="space-y-4 max-w-5xl mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-[#EAE5DC] shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FAF6F0] border border-[#E8DFD1] flex items-center justify-center text-[#9E7B4F] shadow-2xs">
+            <FileText className="w-5 h-5" />
           </div>
-
-          {/* Right Toolbar */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            {/* View Mode Toggle */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-                className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                title="Table View"
-                className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                  viewMode === 'table'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-extrabold text-[#1A1D20] tracking-tight">
+                Quotations & Estimates
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EDE2] text-[#9E7B4F] border border-[#DFC9AE]">
+                {quotations.length} Total
+              </span>
             </div>
-
-            <Button
-              id="btn-add-quotation-modal"
-              variant="primary"
-              size="sm"
-              onClick={handleOpenCreateModal}
-              leftIcon={<Plus className="w-3.5 h-3.5 text-white" />}
-              className="font-bold shrink-0"
-            >
-              New Quotation
-            </Button>
+            <p className="text-[11px] text-[#718292] font-normal">
+              Official MKM customer quotation estimates stored in Cloud Firestore
+            </p>
           </div>
         </div>
 
-        {/* Filter Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Status:</span>
-          {[
-            { id: 'ALL', label: `All (${quotations.length})` },
-            { id: 'Sent', label: `Sent (${quotations.filter((q) => q.status === 'Sent').length})` },
-            { id: 'Accepted', label: `Accepted (${quotations.filter((q) => q.status === 'Accepted').length})` },
-            { id: 'Draft', label: `Draft (${quotations.filter((q) => q.status === 'Draft').length})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id as any)}
-              className={`px-2.5 py-0.5 text-xs rounded-full font-medium transition-all cursor-pointer ${
-                statusFilter === tab.id
-                  ? 'bg-slate-900 text-white shadow-subtle font-semibold'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <Button
+          id="btn-create-quotation"
+          variant="primary"
+          size="md"
+          onClick={handleOpenAdd}
+          leftIcon={<Plus className="w-4 h-4 text-white" />}
+          className="w-full sm:w-auto font-bold bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white px-4 py-2 rounded-xl text-xs shadow-xs"
+        >
+          Create New Quotation
+        </Button>
+      </div>
+
+      {/* Clean Search Bar */}
+      <div className="bg-white p-3 rounded-2xl border border-[#EAE5DC] shadow-xs">
+        <div className="relative w-full">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#8C9CAE]" />
+          <input
+            type="text"
+            placeholder="Search by Quote #, client name, subject, address..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-[#FAF8F5] border border-[#EAE5DC] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9E7B4F] focus:bg-white transition-all"
+          />
         </div>
       </div>
 
-      {/* Main Content: Cards Grid or Table */}
-      {filteredQuotes.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<FileText className="w-8 h-8 text-slate-400" />}
-            title="No quotations found"
-            description="Create commercial moving estimates and convert accepted quotes to confirmed bookings."
-            actionLabel="New Quotation"
-            onAction={handleOpenCreateModal}
-            actionIcon={<Plus className="w-3.5 h-3.5 mr-1" />}
-          />
-        </Card>
-      ) : viewMode === 'grid' ? (
-        /* ==================== CARD GRID VIEW ==================== */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredQuotes.map((q) => {
-            const customer = getCustomer(q.customerId);
-            const cName = getCustomerName(q);
-            const cPhone = getCustomerPhone(q);
-            const cleanPhone = cPhone.replace(/[^0-9]/g, '');
-
-            return (
-              <div
-                key={q.id}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-slate-300 transition-all duration-150 overflow-hidden flex flex-col justify-between"
-              >
-                <div className="p-4 space-y-3">
-                  {/* Card Top */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="font-mono font-black text-slate-900 text-sm block">
-                        #{q.quotationNumber}
-                      </span>
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        <span>Date: {formatDate(q.date)}</span>
-                      </p>
-                    </div>
-
-                    <select
-                      value={q.status}
-                      onChange={(e) => handleUpdateStatus(q, e.target.value as Quotation['status'])}
-                      className="text-xs font-bold px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 focus:outline-none cursor-pointer"
-                    >
-                      <option value="Draft">Draft</option>
-                      <option value="Sent">Sent</option>
-                      <option value="Accepted">Accepted</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
+      {/* Quotations List - High-Visibility, Mobile-Optimized Cards */}
+      {filteredQuotations.length === 0 ? (
+        <EmptyState
+          title="No Quotations Found"
+          description={
+            searchTerm
+              ? 'No quotation matches your search query.'
+              : 'Create your first professional formal moving quotation.'
+          }
+          icon={<FileText className="w-6 h-6" />}
+          action={
+            <Button
+              variant="primary"
+              onClick={handleOpenAdd}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="bg-[#9E7B4F] hover:bg-[#8A6A3E]"
+            >
+              Create New Quotation
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          {filteredQuotations.map((q) => (
+            <div
+              key={q.id}
+              className="bg-white border border-[#EAE5DC] rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all space-y-4"
+            >
+              {/* Card Top: Quotation #, Date */}
+              <div className="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-[#F5F1E8]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E8DFD1] flex items-center justify-center text-[#9E7B4F] shrink-0 font-black text-xs">
+                    QT
                   </div>
-
-                  {/* Customer Information & Quick Call */}
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 truncate">{cName}</p>
-                      <p className="text-[11px] text-slate-600 font-medium">{cPhone}</p>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {cleanPhone && (
-                        <a
-                          href={`tel:${cleanPhone}`}
-                          title="Call Customer"
-                          className="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center justify-center transition-colors"
-                        >
-                          <PhoneCall className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleShareWhatsApp(q)}
-                        title="Send Quote on WhatsApp"
-                        className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Route & Property */}
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-800 font-bold">
-                      <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                      <span className="truncate">{q.pickupAddress.split(',')[0]}</span>
-                      <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span className="truncate">{q.dropAddress.split(',')[0]}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 truncate pl-5">
-                      {q.propertyType} • Move: {formatDate(q.movingDate)}
-                    </p>
-                  </div>
-
-                  {/* Pricing Total */}
-                  <div className="flex justify-between items-center bg-indigo-50/70 p-2 rounded-xl border border-indigo-100 text-xs font-bold">
-                    <span className="text-indigo-900">Total Estimate:</span>
-                    <span className="text-sm font-black text-indigo-900">{formatCurrency(q.grandTotal)}</span>
-                  </div>
+                  <span className="font-black text-base sm:text-lg text-[#1A1D20] tracking-tight truncate">
+                    {q.quotationNumber}
+                  </span>
                 </div>
 
-                {/* Action Footer */}
-                <div className="bg-slate-50/80 p-2.5 border-t border-slate-100 space-y-1.5">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadPDF(q)}
-                      className="h-8 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download PDF</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleConvertToBooking(q)}
-                      className="h-8 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <Truck className="w-3.5 h-3.5" />
-                      <span>Book Move</span>
-                    </button>
-                  </div>
-
-                  {/* Secondary Actions */}
-                  <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/50">
-                    <button
-                      onClick={() => handleOpenEditModal(q)}
-                      className="py-0.5 px-2 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Edit</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setSelectedQuote(q);
-                        setIsPreviewModalOpen(true);
-                      }}
-                      className="py-0.5 px-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Eye className="w-3 h-3 text-slate-400" />
-                      <span>Preview</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteQuotation(q.id)}
-                      className="py-0.5 px-2 text-[11px] font-medium text-rose-600 hover:bg-rose-50 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-[#506070] font-bold bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#EAE5DC]">
+                    {formatQuotationDate(q.date)}
+                  </span>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* ==================== TABLE VIEW ==================== */
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Quote #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Route</TableHead>
-                <TableHead>Moving Date</TableHead>
-                <TableHead>Grand Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredQuotes.map((q) => {
-                const cName = getCustomerName(q);
-                const cPhone = getCustomerPhone(q);
 
-                return (
-                  <TableRow
-                    key={q.id}
-                    isClickable
+              {/* Client & Subject */}
+              <div className="space-y-1">
+                <p className="font-black text-base text-[#1A1D20] tracking-tight truncate">
+                  {q.customerName || 'The Executive Engineer'}
+                </p>
+                <p className="text-xs text-[#718292] truncate flex items-center gap-1.5">
+                  <Building className="w-3.5 h-3.5 text-[#9E7B4F] shrink-0" />
+                  <span>{q.subject || 'Shifting of Office Furniture'}</span>
+                </p>
+              </div>
+
+              {/* Prominent Estimated Rate Box */}
+              <div className="bg-[#FAF8F5] border border-[#EAE5DC] p-3 rounded-xl flex items-center justify-between">
+                <span className="text-xs font-bold text-[#718292] uppercase tracking-wider">
+                  Estimated Rate
+                </span>
+                <span className="font-black text-lg sm:text-xl text-[#1A1D20]">
+                  {formatRupeeDoc(q.grandTotal)}
+                </span>
+              </div>
+
+              {/* Action Buttons: Big & Touch-Friendly on Mobile */}
+              <div className="pt-2 border-t border-[#F5F1E8] space-y-2">
+                {/* Primary Actions: Preview, PDF, To Invoice, WhatsApp */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
                     onClick={() => {
                       setSelectedQuote(q);
                       setIsPreviewModalOpen(true);
                     }}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-2.5 bg-[#FAF6F0] hover:bg-[#F5EDE2] active:scale-98 text-[#9E7B4F] border border-[#DFC9AE] font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="View paper preview"
                   >
-                    <TableCell>
-                      <span className="font-mono font-bold text-slate-900 text-xs">
-                        #{q.quotationNumber}
-                      </span>
-                    </TableCell>
+                    <Eye className="w-4 h-4" />
+                    <span>Preview</span>
+                  </button>
 
-                    <TableCell>
-                      <div>
-                        <p className="font-bold text-slate-900 truncate">{cName}</p>
-                        <p className="text-[11px] text-slate-500">{cPhone}</p>
-                      </div>
-                    </TableCell>
+                  <button
+                    type="button"
+                    onClick={() => generateQuotationPDF(q, undefined, settings)}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-2.5 bg-[#FAF8F5] hover:bg-[#F0EBE1] active:scale-98 text-[#1A1D20] border border-[#EAE5DC] font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="Download PDF"
+                  >
+                    <Download className="w-4 h-4 text-[#718292]" />
+                    <span>PDF</span>
+                  </button>
 
-                    <TableCell>
-                      <p className="font-bold text-slate-800 text-xs truncate">
-                        {q.pickupAddress.split(',')[0]} ➔ {q.dropAddress.split(',')[0]}
-                      </p>
-                      <p className="text-[10px] text-slate-400 truncate max-w-xs">{q.propertyType}</p>
-                    </TableCell>
+                  <button
+                    type="button"
+                    onClick={() => handleConvertToInvoice(q)}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-2.5 bg-[#E6F7F0] hover:bg-[#D1F2E2] active:scale-98 text-[#1B9B6A] border border-[#BDEBD6] font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="Convert to Invoice"
+                  >
+                    <FileCheck className="w-4 h-4" />
+                    <span>To Invoice</span>
+                  </button>
 
-                    <TableCell>
-                      <span className="font-medium text-slate-700 whitespace-nowrap text-xs">
-                        {formatDate(q.movingDate)}
-                      </span>
-                    </TableCell>
+                  <button
+                    type="button"
+                    onClick={() => handleShareWhatsApp(q)}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-2.5 text-emerald-800 hover:bg-emerald-100 active:scale-98 bg-[#E8F8F0] border border-emerald-300 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="Share on WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4 text-emerald-600" />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
 
-                    <TableCell>
-                      <span className="font-black text-slate-900 whitespace-nowrap">
-                        {formatCurrency(q.grandTotal)}
-                      </span>
-                    </TableCell>
+                {/* Secondary Actions: Edit & Delete */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(q)}
+                    className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-98 border border-slate-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                    title="Edit Quotation"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit Quote</span>
+                  </button>
 
-                    <TableCell>
-                      <Badge
-                        variant={
-                          q.status === 'Accepted'
-                            ? 'success'
-                            : q.status === 'Sent'
-                            ? 'info'
-                            : 'neutral'
-                        }
-                        dot
-                      >
-                        {q.status}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleOpenEditModal(q)}
-                          title="Edit Quotation"
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPDF(q)}
-                          title="Download PDF"
-                          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleShareWhatsApp(q)}
-                          title="WhatsApp Quote"
-                          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleConvertToBooking(q)}
-                          title="Convert to Confirmed Move"
-                          className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Truck className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(q.id, q.quotationNumber)}
+                    className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-98 border border-rose-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                    title="Delete Quotation"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* Create / Edit Quotation Modal */}
+      {/* ==================== CREATE / EDIT QUOTATION MODAL ==================== */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title={editingQuoteId ? 'Edit Quotation' : 'Create Relocation Quotation'}
-        subtitle="Custom estimate with handling & labour charges, packing, and vehicle freight"
-        maxWidth="3xl"
+        title={editingQuoteId ? `Edit Quotation: ${quotationNumber}` : 'Create Formal Quotation'}
+        size="lg"
       >
         <form onSubmit={handleSaveQuotation} className="space-y-4 text-xs">
-          {/* Section 1: Customer & Route */}
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-            <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] block">
-              1. Customer & Location Details
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <Select
-                label="Select Customer *"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                options={customers.map((c) => ({
-                  label: `${c.name} (${c.phone})`,
-                  value: c.id,
-                }))}
-              />
-
-              <Input
-                label="Moving Date *"
-                type="date"
-                value={movingDate}
-                onChange={(e) => setMovingDate(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Quote Valid Until *"
-                type="date"
-                value={validUntil}
-                onChange={(e) => setValidUntil(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Pickup Address (Origin) *"
-                placeholder="e.g. West Mambalam, Chennai"
-                value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Drop Address (Destination) *"
-                placeholder="e.g. Senthamizh Nagar, Sivagangai"
-                value={dropAddress}
-                onChange={(e) => setDropAddress(e.target.value)}
-                required
-              />
-
-              <Select
-                label="Property Type"
-                value={propertyType}
-                onChange={(e) => setPropertyType(e.target.value as PropertyType)}
-                options={[
-                  { label: '1 BHK Apartment', value: '1 BHK' },
-                  { label: '2 BHK Apartment', value: '2 BHK' },
-                  { label: '3 BHK Apartment', value: '3 BHK' },
-                  { label: '4 BHK / Villa', value: '4 BHK' },
-                  { label: 'Independent Villa', value: 'Villa' },
-                  { label: 'Office Move', value: 'Office' },
-                ]}
-              />
-            </div>
+          {/* Top Meta Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <Input
+              label="Quotation Number *"
+              value={quotationNumber}
+              onChange={(e) => setQuotationNumber(e.target.value)}
+              required
+            />
+            <Input
+              label="Quotation Date *"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
           </div>
 
-          {/* Section 2: Line Items & Handling Charges */}
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                <Truck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>2. Handling, Labour, Packing & Shifting Items</span>
-              </span>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem(
-                      'Transportation Freight Charges',
-                      12000,
-                      'Dedicated shifting vehicle freight'
-                    )
-                  }
-                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + 🚛 Transport
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem(
-                      'Handling & Labour Charges',
-                      3500,
-                      'Loading and unloading assistance'
-                    )
-                  }
-                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + 👥 Labour/Handling
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem(
-                      'Packing Materials Charges',
-                      2500,
-                      'Carton boxes & bubble wrapping'
-                    )
-                  }
-                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + 📦 Packing
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem('Custom Charge', 1500, 'Special handling service')
-                  }
-                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + ➕ Add Custom
-                </button>
-              </div>
+          {/* Recipient Details (Email removed) */}
+          <div className="p-3.5 bg-[#FAF6F0] rounded-xl border border-[#DFC9AE] space-y-3">
+            <div className="flex items-center gap-1.5 font-bold text-[#1A1D20] text-xs">
+              <Building className="w-3.5 h-3.5 text-[#9E7B4F]" />
+              <span>To (Client / Recipient Address)</span>
             </div>
 
-            {/* Charges List - Clean & Spacious */}
-            <div className="space-y-2 bg-slate-100/70 p-2.5 rounded-2xl border border-slate-200">
-              {items.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs space-y-2 transition-all hover:border-slate-300"
-                >
-                  {/* Top Row: Service Name & Description + Delete */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 space-y-1">
-                      <input
-                        type="text"
-                        value={item.service}
-                        onChange={(e) => handleItemChange(index, 'service', e.target.value)}
-                        placeholder="Service Title (e.g. Transportation Freight Charges)"
-                        className="w-full font-extrabold text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-600 focus:outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                        placeholder="Details / Specifications"
-                        className="w-full text-[11px] text-slate-500 px-2.5 py-1 bg-slate-50/50 border border-slate-100 rounded-lg focus:bg-white focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Client / Attention Title *"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="The Executive Engineer"
+                required
+              />
+              <Input
+                label="Department / Division"
+                value={divisionDept}
+                onChange={(e) => setDivisionDept(e.target.value)}
+                placeholder="AOBM"
+              />
+            </div>
 
-                    {items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        title="Remove Charge"
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+            <Textarea
+              label="Organization Name & Address *"
+              rows={2}
+              value={organizationAddress}
+              onChange={(e) => setOrganizationAddress(e.target.value)}
+              placeholder="Chennai Metropolitan Water Supply, Chennai 600028."
+              required
+            />
+
+            <Input
+              label="Contact Phone"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="98405 46766"
+            />
+          </div>
+
+          {/* Subject & Letter Body */}
+          <div className="space-y-3">
+            <Input
+              label="Subject Line *"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Sub: Shifting of OFFICE FURNITURE'S FROM AMMA MALIGAI CHENNAI CENTRAL TO CMWSSB HEAD OFFICE..."
+              required
+            />
+
+            <Textarea
+              label="Opening Discussion Paragraph *"
+              rows={3}
+              value={introParagraph}
+              onChange={(e) => setIntroParagraph(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Particulars Items */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-900">Particulars & Rate Table</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setItems((prev) => [
+                    ...prev,
+                    {
+                      id: Date.now().toString(),
+                      service: 'EXTRA LABOUR AND PACKING MATERIALS CHARGES',
+                      description: '',
+                      qty: 1,
+                      unitPrice: 3000,
+                      discount: 0,
+                      amount: 3000,
+                    },
+                  ])
+                }
+                className="text-xs font-bold text-[#9E7B4F] hover:text-[#8A6A3E] flex items-center gap-1 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Add Particulars Line</span>
+              </button>
+            </div>
+
+            {items.map((item, idx) => (
+              <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <Textarea
+                      label={`Particulars (Row ${idx + 1})`}
+                      rows={2}
+                      value={item.service}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        updated[idx].service = e.target.value;
+                        setItems(updated);
+                      }}
+                      placeholder="PACKING CHARGES, PACKING MATERIALS, TRANSPORT, LOADING CHARGES AND UNLOADING CHARGES."
+                    />
                   </div>
 
-                  {/* Bottom Row: Rate, Qty & Amount */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
-                    <div className="flex items-center gap-3">
-                      {/* Rate (₹) */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-slate-500">Rate (₹):</span>
-                        <input
-                          type="number"
-                          value={item.unitPrice}
-                          onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
-                          className="w-28 sm:w-32 h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-900 text-right focus:border-indigo-600 focus:outline-none"
-                        />
-                      </div>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                      className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer mt-5"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
 
-                      {/* Qty */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-slate-500">Qty:</span>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
-                          className="w-14 h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 text-center focus:border-indigo-600 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Computed Total Badge */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-slate-500">Total:</span>
-                      <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-900 font-black text-xs rounded-lg">
-                        {formatCurrency(item.amount)}
-                      </span>
-                    </div>
+                <div className="flex justify-end">
+                  <div className="w-44">
+                    <Input
+                      label="Rate / Amount (Rs.) *"
+                      type="number"
+                      value={item.amount}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        const val = Number(e.target.value) || 0;
+                        updated[idx].unitPrice = val;
+                        updated[idx].amount = val;
+                        setItems(updated);
+                      }}
+                      required
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
 
-          {/* Section 3: Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Special Discount (₹)</label>
-              <input
-                type="number"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value)}
-                placeholder="0"
-                className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 focus:outline-none"
-              />
-            </div>
-
-            <div className="bg-slate-900 text-white p-3 rounded-xl space-y-1">
-              <div className="flex justify-between text-xs text-slate-300">
-                <span>Subtotal:</span>
-                <span>{formatCurrency(subtotal)}</span>
+          {/* Terms and Conditions List */}
+          <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <span className="font-bold text-slate-900">TERMS & CONDITIONS (5-Point Standard List)</span>
+            {termsList.map((term, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className="text-[#9E7B4F] font-bold">➤</span>
+                <input
+                  type="text"
+                  value={term}
+                  onChange={(e) => {
+                    const updated = [...termsList];
+                    updated[idx] = e.target.value;
+                    setTermsList(updated);
+                  }}
+                  className="flex-1 px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#9E7B4F]"
+                />
               </div>
-              {discountVal > 0 && (
-                <div className="flex justify-between text-xs text-amber-300">
-                  <span>Discount:</span>
-                  <span>-{formatCurrency(discountVal)}</span>
-                </div>
-              )}
-              <div className="pt-1 border-t border-slate-700 flex justify-between items-center text-sm font-black text-amber-400">
-                <span>Estimated Total:</span>
-                <span>{formatCurrency(grandTotal)}</span>
-              </div>
-            </div>
+            ))}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsAddModalOpen(false)}>
+          {/* Total Bar */}
+          <div className="bg-slate-900 text-white p-3.5 rounded-xl flex justify-between items-center text-sm font-extrabold">
+            <span>TOTAL ESTIMATED QUOTATION RATE:</span>
+            <span className="text-base text-amber-400">{formatRupeeDoc(calculateTotal())}</span>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit">
-              {editingQuoteId ? 'Save Quotation' : 'Create Quotation'}
+            <Button
+              variant="primary"
+              type="submit"
+              className="bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white"
+            >
+              {editingQuoteId ? 'Save Changes' : 'Store Quotation in Firestore'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* View Quotation Modal */}
+      {/* ==================== EXACT PHYSICAL QUOTATION PREVIEW MODAL ==================== */}
       {selectedQuote && (
         <Modal
           isOpen={isPreviewModalOpen}
           onClose={() => setIsPreviewModalOpen(false)}
-          title={`Quotation #${selectedQuote.quotationNumber}`}
-          subtitle={`Estimated for ${getCustomerName(selectedQuote)}`}
-          maxWidth="3xl"
-          footer={
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between w-full gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteQuotation(selectedQuote.id)}
-                leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
-                className="text-rose-600 hover:bg-rose-50"
-              >
-                Delete
-              </Button>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsPreviewModalOpen(false);
-                    handleOpenEditModal(selectedQuote);
-                  }}
-                  leftIcon={<Edit3 className="w-3.5 h-3.5 text-indigo-600" />}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDownloadPDF(selectedQuote)}
-                  leftIcon={<Download className="w-3.5 h-3.5" />}
-                >
-                  Download PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleShareWhatsApp(selectedQuote)}
-                  leftIcon={<MessageCircle className="w-3.5 h-3.5 text-emerald-600" />}
-                >
-                  WhatsApp
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleConvertToBooking(selectedQuote)}
-                  leftIcon={<Truck className="w-3.5 h-3.5" />}
-                >
-                  Convert to Active Move
-                </Button>
-              </div>
-            </div>
-          }
+          title={`Quotation Preview: ${selectedQuote.quotationNumber}`}
+          size="lg"
         >
-          <div className="space-y-3.5 bg-white text-xs">
-            {/* Header */}
-            <div className="flex justify-between items-start border-b border-slate-200 pb-3">
-              <div>
-                <h3 className="text-base font-black text-indigo-900">{settings.companyName}</h3>
-                <p className="text-slate-600 text-xs mt-0.5">{settings.address}</p>
-                <p className="text-slate-500 text-[11px]">Phone: {settings.phone} • Email: {settings.email}</p>
-              </div>
-              <div className="text-right">
-                <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded-full">
-                  {selectedQuote.status}
-                </span>
-                <p className="font-mono font-black text-sm text-slate-900 mt-1">#{selectedQuote.quotationNumber}</p>
-                <p className="text-slate-500 text-[11px]">Date: {formatDate(selectedQuote.date)}</p>
-              </div>
+          <div className="space-y-4">
+            {/* Actions Bar */}
+            <div className="flex justify-end gap-2 bg-slate-100 p-2 rounded-xl">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => window.print()}
+                leftIcon={<Printer className="w-3.5 h-3.5" />}
+              >
+                Print Direct
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => generateQuotationPDF(selectedQuote, undefined, settings)}
+                leftIcon={<Download className="w-3.5 h-3.5" />}
+                className="bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white"
+              >
+                Download PDF
+              </Button>
             </div>
 
-            {/* Customer & Route */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Customer Details</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">{getCustomerName(selectedQuote)}</p>
-                <p className="text-slate-600">{getCustomerPhone(selectedQuote)}</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Moving Schedule</span>
-                <p className="font-bold text-slate-900 mt-0.5">📅 {formatDate(selectedQuote.movingDate)}</p>
-                <p className="text-slate-600">{selectedQuote.propertyType} • {selectedQuote.vehicleType}</p>
-              </div>
-            </div>
+            {/* Paper Document Preview */}
+            <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-300 shadow-md font-sans text-slate-900 space-y-6 max-w-2xl mx-auto">
+              {/* Header */}
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={
+                      settings.logoUrl && settings.logoUrl.startsWith('data:')
+                        ? settings.logoUrl
+                        : MKM_LOGO_BASE64
+                    }
+                    alt="MKM Logo"
+                    className="w-12 h-12 rounded-full object-contain ring-1 ring-[#9E7B4F] bg-white p-0.5"
+                  />
+                  <div>
+                    <h1 className="text-base font-black tracking-wide">
+                      <span className="text-rose-600">MKM</span> PACKERS AND MOVERS
+                    </h1>
+                  </div>
+                </div>
 
-            {/* Locations */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <span className="text-[10px] font-bold text-indigo-700 uppercase block">Origin (Pickup)</span>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedQuote.pickupAddress}</p>
+                <div className="text-right text-[10px] font-normal text-slate-800 leading-tight">
+                  NO. 13/6, VALLALAR STREET, PADMANABA NAGAR,<br />
+                  CHOOLAIMEDU, CHENNAI- 600 094.
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] font-bold text-indigo-700 uppercase block">Destination (Drop)</span>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedQuote.dropAddress}</p>
-              </div>
-            </div>
 
-            {/* Items Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-900 text-white font-bold text-[11px]">
-                  <tr>
-                    <th className="p-2.5">#</th>
-                    <th className="p-2.5">Service Description</th>
-                    <th className="p-2.5 text-right">Rate</th>
-                    <th className="p-2.5 text-center">Qty</th>
-                    <th className="p-2.5 text-right">Estimated Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {selectedQuote.items.map((item, idx) => (
-                    <tr key={item.id}>
-                      <td className="p-2.5 font-bold text-slate-400">{idx + 1}</td>
-                      <td className="p-2.5">
-                        <p className="font-bold text-slate-900">{item.service}</p>
-                        {item.description && (
-                          <p className="text-[11px] text-slate-500">{item.description}</p>
-                        )}
-                      </td>
-                      <td className="p-2.5 text-right">{formatCurrency(item.unitPrice)}</td>
-                      <td className="p-2.5 text-center">{item.qty}</td>
-                      <td className="p-2.5 text-right font-bold text-slate-900">
-                        {formatCurrency(item.amount)}
-                      </td>
+              {/* Recipient & Date */}
+              <div className="flex justify-between items-start pt-2">
+                <div className="text-xs text-slate-900 leading-relaxed">
+                  <p className="font-normal mb-1">To</p>
+                  <p className="font-bold">
+                    {selectedQuote.customerName || 'The Executive Engineer'}
+                  </p>
+                  <p className="font-normal">AOBM</p>
+                  <p className="font-normal whitespace-pre-line">
+                    {selectedQuote.dropAddress || 'Chennai Metropolitan Water Supply\nChennai 600028.'}
+                  </p>
+                </div>
+
+                <div className="text-right font-bold text-xs text-slate-900">
+                  DATE: {formatQuotationDate(selectedQuote.date)}
+                </div>
+              </div>
+
+              {/* Underlined Subject */}
+              <div className="text-xs text-slate-900 border-b border-slate-900 pb-1 font-normal leading-relaxed">
+                {selectedQuote.subject ||
+                  "Sub: Shifting of OFFICE FURNITURE'S FROM AMMA MALIGAI CHENNAI CENTRAL TO CMWSSB HEAD OFFICE, CHINTADRIPET, Chennai."}
+              </div>
+
+              {/* Introductory Paragraph */}
+              <div className="text-xs text-slate-800 leading-relaxed font-normal">
+                {selectedQuote.introParagraph ||
+                  'Kindly refer to our discussion regarding the above subject. We are giving below here with our quotation and other terms and conditions. Hope you will find our quotation competitive and we assure for the best service. The scope of work would be packing and moving goods'}
+              </div>
+
+              {/* PARTICULARS TABLE */}
+              <div className="border border-slate-900 overflow-hidden">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-900 text-slate-900">
+                      <th className="px-2 py-1.5 text-center border-r border-slate-900 w-12 font-normal">
+                        s.<br />no
+                      </th>
+                      <th className="px-3 py-1.5 text-center border-r border-slate-900 font-normal">
+                        PARTICULARS
+                      </th>
+                      <th className="px-3 py-1.5 text-center w-32 font-normal">RATE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {selectedQuote.items && selectedQuote.items.length > 0 ? (
+                      selectedQuote.items.map((item, idx) => (
+                        <tr key={idx} className="border-b border-slate-900">
+                          <td className="px-2 py-3 text-center border-r border-slate-900 font-normal">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3 py-3 text-slate-900 border-r border-slate-900 font-normal uppercase">
+                            {item.service}
+                          </td>
+                          <td className="px-3 py-3 text-center font-bold text-slate-900 underline">
+                            {formatRupeeDoc(item.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="border-b border-slate-900">
+                        <td className="px-2 py-3 text-center border-r border-slate-900">1</td>
+                        <td className="px-3 py-3 text-slate-900 border-r border-slate-900 uppercase">
+                          PACKING CHARGES, PACKING MATERIALS, TRANSPORT, LOADING CHARGES AND UNLOADING CHARGES.
+                        </td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900 underline">
+                          {formatRupeeDoc(selectedQuote.grandTotal)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Total */}
-            <div className="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-xs font-bold">
-              <span className="text-indigo-900">Grand Total Estimate:</span>
-              <span className="text-base font-black text-indigo-900">{formatCurrency(selectedQuote.grandTotal)}</span>
+              {/* TERMS & CONDITIONS */}
+              <div className="space-y-2">
+                <h3 className="font-bold text-xs text-slate-900 underline">TERMS & CONDITIONS</h3>
+                <ul className="text-xs text-slate-800 space-y-1.5 pl-1 font-normal">
+                  {(selectedQuote.termsList && selectedQuote.termsList.length > 0
+                    ? selectedQuote.termsList
+                    : defaultTermsList
+                  ).map((term, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-slate-700">➤</span>
+                      <span>{term}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Sign-off */}
+              <div className="pt-4 text-xs text-slate-900 space-y-8">
+                <p>For MKM PACKERS AND MOVERS</p>
+                <p>Authorized signature</p>
+              </div>
+
+              {/* Footer */}
+              <div className="pt-6 border-t border-slate-200 text-center text-[10px] text-slate-700">
+                EMAIL: {settings.email || 'mkmpackersandmovers@gmail.com'}, CONACT:{' '}
+                {settings.phone || '9840546766, 9342306048.'}
+              </div>
             </div>
           </div>
         </Modal>

@@ -15,20 +15,22 @@ export const initialSettings: CompanySettings = {
   createdAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-30T00:00:00.000Z',
   companyName: 'MKM Packers & Movers',
-  phone: '09840546766',
-  whatsapp: '09840546766',
+  phone: '98405 46766, 93423 06048',
+  whatsapp: '98405 46766',
   email: 'mkmpackersandmovers@gmail.com',
-  website: 'www.mkmpackers.com',
+  website: 'www.mkmpackersandmovers.com',
   address:
-    '13, 6, Vallalar St, Senthil Nagar, Loganathan Nagar, Padmanabha Nagar, Choolaimedu, Chennai, Tamil Nadu 600094',
-  gstNumber: '33ADVPU2567L3ZM',
+    'NEW NO 13 OLD NO 6, VALLALAR STREET, PADMANABA NAGAR, CHOOLAIMEDU, CHENNAI 600 094.',
+  gstNumber: '',
   invoicePrefix: 'INV-',
-  invoiceStartNumber: 1000,
+  invoiceStartNumber: 100,
   quotationPrefix: 'QT-',
-  quotationStartNumber: 500,
+  quotationStartNumber: 100,
   taxRate: 18,
   terms:
-    '1. 50% advance payment required for booking confirmation.\n2. Balance to be paid upon loading & dispatch.\n3. Goods safely transported under standard logistics guidelines.',
+    '1. Payment: 100% to be paid at the time of loading.\n2. This quote is valid for 14 days from this day.\n3. Rate will be varied if packing material or load exceed at the time of packing and movement.\n4. Insurance 2% of declared value.\n5. Maximum load 1 tons to 1.5 tons only will be loaded',
+  invoiceTerms:
+    '1. The rate is inclusive of packing material, loading and unloading charges.\n2. Payment is due upon completion of delivery.\n3. Goods transit handled under standard logistics terms.',
 };
 
 export const initialServicePrices: ServicePrice[] = [

@@ -1,1424 +1,888 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Badge, Input, Select, Textarea } from '../components/ui/Input';
+import { Input, Select, Textarea } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
 import { useToast } from '../components/ui/Toast';
 import { useAppContext } from '../store/AppContext';
-import { formatDate, formatCurrency } from '../utils';
 import {
   Search,
   Plus,
-  Filter,
-  FileText,
+  Receipt,
   Download,
-  Share2,
-  CreditCard,
   Printer,
   Trash2,
-  PlusCircle,
-  CheckCircle2,
-  DollarSign,
-  Receipt,
   Eye,
   MessageCircle,
-  AlertCircle,
-  LayoutGrid,
-  List,
-  Phone,
-  PhoneCall,
-  RotateCcw,
-  Sparkles,
-  Check,
-  Calendar,
-  Building,
-  TrendingUp,
   Edit3,
-  Truck,
-  MapPin,
-  Package,
+  Building,
+  PlusCircle,
+  X,
 } from 'lucide-react';
-import { Invoice, QuotationItem, PaymentMethod } from '../types';
-import { generateInvoicePDF, numberToWordsIndian } from '../utils/pdfExport';
+import { Invoice, QuotationItem } from '../types';
+import { generateInvoicePDF, formatRupeeDoc, formatInvoiceDate } from '../utils/pdfExport';
+import { MKM_LOGO_BASE64 } from '../assets/logo';
 
 export const Invoices = () => {
-  const { invoices, customers, settings, addInvoice, updateInvoice, deleteInvoice, addPayment, generateNextInvoiceNumber } =
-    useAppContext();
+  const {
+    invoices,
+    settings,
+    addInvoice,
+    updateInvoice,
+    deleteInvoice,
+    generateNextInvoiceNumber,
+  } = useAppContext();
   const { success, error: toastError } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  // Simplified & Intuitive Invoice Form State
+  // Form State matching physical invoice
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dueDate, setDueDate] = useState(
-    new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+  const [poNumber, setPoNumber] = useState('');
+  const [gstType, setGstType] = useState('NILL'); // 'NILL' or '18% GST (9% CGST + 9% SGST)'
+  const [customGstin, setCustomGstin] = useState('');
+
+  // Bill To details
+  const [customerName, setCustomerName] = useState('The Executive Engineer');
+  const [divisionDept, setDivisionDept] = useState('AOBM');
+  const [organizationAddress, setOrganizationAddress] = useState(
+    'Chennai Metropolitan Water Supply\nChennai 600028.'
   );
-  const [vehicleNo, setVehicleNo] = useState('TN 88 L 5186');
+  const [customerPhone, setCustomerPhone] = useState('');
 
-  // Customer & Route Details (Directly Editable)
-  const [customerId, setCustomerId] = useState(customers[0]?.id || '');
-  const [customerName, setCustomerName] = useState('Ganesh');
-  const [customerPhone, setCustomerPhone] = useState('9585702029');
-  const [moveFromAddress, setMoveFromAddress] = useState('West Mambalam, Chennai');
-  const [moveToAddress, setMoveToAddress] = useState('Senthamizh Nagar, Sivagangai');
-
-  // Package Specs
-  const [packageCount, setPackageCount] = useState('46 Cartons / Household Items');
-
-  // Line Items (Handling, Labour, Packing, Transport)
+  // Line items
   const [items, setItems] = useState<QuotationItem[]>([
     {
       id: '1',
-      service: 'Transportation & Dedicated Freight Charges',
-      description: 'West Mambalam to Sivagangai shifting',
+      service: "Transportation charges for Office Furniture's",
+      description:
+        'Amma Maaligai Chennai Central to CMWSSB Head Office Chintadripet\nThe rate inclusive of packing material, loading and un-loading charges',
       qty: 1,
-      unitPrice: 15000,
+      unitPrice: 14000,
       discount: 0,
-      amount: 15000,
-    },
-    {
-      id: '2',
-      service: 'Handling, Loading & Labour Charges',
-      description: '4-Member professional shifting crew at origin and destination',
-      qty: 1,
-      unitPrice: 3500,
-      discount: 0,
-      amount: 3500,
-    },
-    {
-      id: '3',
-      service: 'Packing Materials & Professional Packing',
-      description: 'Carton boxes, bubble wrap, corrugated sheets protection',
-      qty: 1,
-      unitPrice: 2500,
-      discount: 0,
-      amount: 2500,
+      amount: 14000,
     },
   ]);
 
-  const [discountAmount, setDiscountAmount] = useState<string>('0');
-  const [amountPaidInit, setAmountPaidInit] = useState<string>('0');
-  const [notes, setNotes] = useState('Payment is requested upon unloading & final delivery.');
+  const [otherCharges, setOtherCharges] = useState('0');
 
-  // Payment Recording State
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI');
-  const [paymentRef, setPaymentRef] = useState('');
-  const [paymentNotes, setPaymentNotes] = useState('Received via PhonePe / GPay');
-
-  const getCustomer = (id: string) => customers.find((c) => c.id === id);
-  const getCustomerName = (inv: Invoice) => inv.customerName || getCustomer(inv.customerId)?.name || 'Customer';
-  const getCustomerPhone = (inv: Invoice) => inv.customerPhone || getCustomer(inv.customerId)?.phone || '';
-
-  const calculateSubtotal = (itemList: QuotationItem[]) => {
-    return itemList.reduce((sum, item) => sum + (item.amount || 0), 0);
+  // Totals calculations
+  const calculateSubtotal = () => {
+    return items.reduce((acc, item) => acc + (Number(item.amount) || 0), 0);
   };
 
-  const handleItemChange = (index: number, field: keyof QuotationItem, value: any) => {
-    const updated = [...items];
-    const item = { ...updated[index], [field]: value };
-    if (field === 'qty' || field === 'unitPrice' || field === 'discount') {
-      const q = field === 'qty' ? Math.max(1, Number(value) || 1) : item.qty;
-      const p = field === 'unitPrice' ? Number(value) || 0 : item.unitPrice;
-      const d = field === 'discount' ? Number(value) || 0 : item.discount;
-      item.qty = q;
-      item.unitPrice = p;
-      item.discount = d;
-      item.amount = Math.max(0, q * p - d);
+  const calculateTax = () => {
+    if (gstType.includes('18%')) {
+      return Math.round(calculateSubtotal() * 0.18);
     }
-    updated[index] = item;
-    setItems(updated);
+    return 0;
   };
 
-  // Quick Preset Add
-  const handleAddPresetItem = (serviceName: string, defaultPrice: number, defaultDesc: string) => {
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString() + Math.random().toString().slice(2, 5),
-        service: serviceName,
-        description: defaultDesc,
-        qty: 1,
-        unitPrice: defaultPrice,
-        discount: 0,
-        amount: defaultPrice,
-      },
-    ]);
+  const calculateGrandTotal = () => {
+    const sub = calculateSubtotal();
+    const tax = calculateTax();
+    const other = Number(otherCharges) || 0;
+    return sub + tax + other;
   };
 
-  const handleRemoveItem = (index: number) => {
-    if (items.length <= 1) {
-      toastError('Cannot Remove', 'Invoice must contain at least one charge item.');
-      return;
-    }
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const subtotal = calculateSubtotal(items);
-  const discountVal = Number(discountAmount) || 0;
-  const taxableAmount = Math.max(0, subtotal - discountVal);
-  const grandTotal = taxableAmount;
-  const initPaid = Number(amountPaidInit) || 0;
-  const balanceDue = Math.max(0, grandTotal - initPaid);
-
-  // Quick Auto-Fill Customer
-  const handleQuickCustomerPick = (cId: string) => {
-    setCustomerId(cId);
-    const found = customers.find((c) => c.id === cId);
-    if (found) {
-      setCustomerName(found.name);
-      setCustomerPhone(found.phone);
-    }
-  };
-
-  // Open Create Modal
-  const handleOpenCreateModal = async () => {
+  // Open modal for new invoice
+  const handleOpenAdd = async () => {
     setEditingInvoiceId(null);
     try {
-      const invNum = await generateNextInvoiceNumber();
-      setInvoiceNumber(invNum);
+      const nextNum = await generateNextInvoiceNumber();
+      setInvoiceNumber(nextNum);
     } catch {
-      setInvoiceNumber(`${settings.invoicePrefix || 'INV-'}${Date.now().toString().slice(-4)}`);
+      setInvoiceNumber(`INV-${Date.now().toString().slice(-4)}`);
     }
     setDate(new Date().toISOString().split('T')[0]);
-    setDueDate(new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]);
-    setVehicleNo('TN 88 L 5186');
-
-    if (customers.length > 0) {
-      setCustomerId(customers[0].id);
-      setCustomerName(customers[0].name);
-      setCustomerPhone(customers[0].phone);
-    } else {
-      setCustomerName('Ganesh');
-      setCustomerPhone('9585702029');
-    }
-
-    setMoveFromAddress('No 4 Sreenath Flats, West Mambalam, Chennai');
-    setMoveToAddress('Senthamizh Nagar, Sivagangai');
-    setPackageCount('46 Cartons / Household Items');
-
+    setPoNumber('');
+    setGstType('NILL');
+    setCustomGstin('');
+    setCustomerName('The Executive Engineer');
+    setDivisionDept('AOBM');
+    setOrganizationAddress('Chennai Metropolitan Water Supply\nChennai 600028.');
+    setCustomerPhone('');
     setItems([
       {
         id: '1',
-        service: 'Transportation & Dedicated Freight Charges',
-        description: 'West Mambalam to Sivagangai shifting',
+        service: "Transportation charges for Office Furniture's",
+        description:
+          'Amma Maaligai Chennai Central to CMWSSB Head Office Chintadripet\nThe rate inclusive of packing material, loading and un-loading charges',
         qty: 1,
-        unitPrice: 15000,
+        unitPrice: 14000,
         discount: 0,
-        amount: 15000,
-      },
-      {
-        id: '2',
-        service: 'Handling, Loading & Labour Charges',
-        description: '4-Member professional shifting crew at origin & destination',
-        qty: 1,
-        unitPrice: 3500,
-        discount: 0,
-        amount: 3500,
-      },
-      {
-        id: '3',
-        service: 'Packing Materials & Professional Packing',
-        description: 'Carton boxes, bubble wrap, corrugated sheets protection',
-        qty: 1,
-        unitPrice: 2500,
-        discount: 0,
-        amount: 2500,
+        amount: 14000,
       },
     ]);
-    setDiscountAmount('0');
-    setAmountPaidInit('0');
-    setNotes('Payment is requested upon unloading & final delivery.');
+    setOtherCharges('0');
     setIsAddModalOpen(true);
   };
 
-  // Open Edit Modal
-  const handleOpenEditModal = (invoice: Invoice) => {
-    setEditingInvoiceId(invoice.id);
-    setInvoiceNumber(invoice.invoiceNumber);
-    setDate(invoice.date);
-    setDueDate(invoice.dueDate);
-    setVehicleNo(invoice.vehicleNo || 'TN 88 L 5186');
+  // Open modal for editing
+  const handleOpenEdit = (inv: Invoice) => {
+    setEditingInvoiceId(inv.id);
+    setInvoiceNumber(inv.invoiceNumber);
+    setDate(inv.date);
+    setPoNumber(inv.poNumber || '');
+    setGstType(inv.gstType || (inv.tax > 0 ? '18% GST (9% CGST + 9% SGST)' : 'NILL'));
+    setCustomGstin(inv.customerGst || '');
+    setCustomerName(inv.customerName || 'The Executive Engineer');
 
-    setCustomerId(invoice.customerId);
-    setCustomerName(invoice.customerName || getCustomerName(invoice));
-    setCustomerPhone(invoice.customerPhone || getCustomer(invoice.customerId)?.phone || '');
-    setMoveFromAddress(invoice.moveFromAddress || 'West Mambalam, Chennai');
-    setMoveToAddress(invoice.moveToAddress || 'Senthamizh Nagar, Sivagangai');
-    setPackageCount(invoice.packageCount || '46 Cartons / Household Items');
+    // Parse bill to lines
+    if (inv.billToDetails) {
+      const lines = inv.billToDetails.split('\n');
+      setCustomerName(lines[0] || inv.customerName || '');
+      setDivisionDept(lines[1] || '');
+      setOrganizationAddress(lines.slice(2).join('\n') || '');
+    } else {
+      setDivisionDept('');
+      setOrganizationAddress(inv.moveToAddress || '');
+    }
 
-    setItems(invoice.items);
-    setDiscountAmount(invoice.discount.toString());
-    setAmountPaidInit(invoice.amountPaid.toString());
-    setNotes(invoice.notes || 'Payment is requested upon unloading & final delivery.');
+    setCustomerPhone(inv.customerPhone || '');
+    setItems(
+      inv.items && inv.items.length > 0
+        ? inv.items
+        : [
+            {
+              id: '1',
+              service: "Transportation charges for Office Furniture's",
+              description:
+                'Amma Maaligai Chennai Central to CMWSSB Head Office Chintadripet\nThe rate inclusive of packing material, loading and un-loading charges',
+              qty: 1,
+              unitPrice: inv.subtotal || inv.grandTotal,
+              discount: 0,
+              amount: inv.subtotal || inv.grandTotal,
+            },
+          ]
+    );
+    setOtherCharges(String(inv.otherCharges || '0'));
     setIsAddModalOpen(true);
   };
 
-  // Save / Update Invoice
+  // Save invoice to Firestore
   const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!customerName.trim() || !customerPhone.trim()) {
-      toastError('Missing Details', 'Customer name and phone number are required.');
+    if (!customerName.trim()) {
+      toastError('Validation Error', 'Please enter customer / attention name.');
       return;
     }
 
-    if (items.length === 0) {
-      toastError('Missing Items', 'Invoice must have at least one billable item.');
-      return;
-    }
+    const subtotal = calculateSubtotal();
+    const tax = calculateTax();
+    const other = Number(otherCharges) || 0;
+    const grandTotal = subtotal + tax + other;
 
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const discountVal = Number(discountAmount) || 0;
-    const initPaid = Number(amountPaidInit) || 0;
-    const grandTotal = Math.max(0, subtotal - discountVal);
-    const balanceDue = Math.max(0, grandTotal - initPaid);
-    const status = balanceDue === 0 ? 'Paid' : initPaid > 0 ? 'Partially Paid' : 'Unpaid';
+    const billToDetails = [customerName.trim(), divisionDept.trim(), organizationAddress.trim()]
+      .filter(Boolean)
+      .join('\n');
 
-    const invoiceData: Invoice = {
+    const invoicePayload: Invoice = {
       id: editingInvoiceId || `inv-${Date.now()}`,
       invoiceNumber: invoiceNumber.trim() || `INV-${Date.now().toString().slice(-4)}`,
-      customerId,
+      customerId: 'custom-client',
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerEmail: '',
+      customerGst: gstType === 'NILL' ? 'NILL' : customGstin.trim() || 'GST Registered',
+      gstType: gstType === 'NILL' ? 'NILL' : customGstin.trim() || 'GST 18%',
+      poNumber: poNumber.trim(),
+      billToDetails,
+      moveToAddress: organizationAddress.trim(),
       date,
-      dueDate,
+      dueDate: date,
       items,
       subtotal,
-      discount: discountVal,
-      tax: 0,
+      tax,
+      centralTax: tax > 0 ? tax / 2 : 0,
+      stateTax: tax > 0 ? tax / 2 : 0,
+      otherCharges: other,
       grandTotal,
-      amountPaid: initPaid,
-      balanceDue,
-      status,
-      notes,
-      createdAt: editingInvoiceId
-        ? invoices.find((i) => i.id === editingInvoiceId)?.createdAt || new Date().toISOString()
-        : new Date().toISOString(),
-
-      documentTitle: 'TAX INVOICE',
-      customerName,
-      customerPhone,
-      moveFromAddress,
-      moveFromCityStatePin: 'Chennai, Tamil Nadu',
-      moveToName: customerName,
-      moveToPhone: customerPhone,
-      moveToAddress,
-      moveToCityStatePin: 'Tamil Nadu',
-      vehicleNo,
-      packageCount,
-      weightVolume: '14ft Container',
-      packageCondition: 'ALL ITEMS IN GOOD CONDITION',
+      amountPaid: grandTotal,
+      balanceDue: 0,
+      discount: 0,
+      status: 'Paid',
+      notes: 'Payment is requested upon unloading & final delivery.',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     try {
       if (editingInvoiceId) {
-        await updateInvoice(invoiceData);
-        success('Invoice Updated', `Invoice ${invoiceData.invoiceNumber} updated.`);
+        await updateInvoice(invoicePayload);
+        success('Invoice Updated', `Invoice ${invoicePayload.invoiceNumber} updated in Firestore.`);
       } else {
-        await addInvoice(invoiceData);
-        if (initPaid > 0) {
-          const payRes = await addPayment({
-            id: `pay-${Date.now()}`,
-            invoiceId: invoiceData.id,
-            customerId: invoiceData.customerId,
-            amount: initPaid,
-            date: new Date().toISOString().split('T')[0],
-            method: 'UPI',
-            referenceNumber: `INIT-${Date.now().toString().slice(-4)}`,
-            notes: 'Freight advance recorded',
-            createdAt: new Date().toISOString(),
-          });
-          if (payRes && !payRes.success) {
-            toastError('Payment Notice', payRes.error || 'Failed to record initial payment.');
-          }
-        }
-        success('Invoice Issued', `Invoice ${invoiceData.invoiceNumber} created.`);
+        await addInvoice(invoicePayload);
+        success('Invoice Stored', `Invoice ${invoicePayload.invoiceNumber} saved to Cloud Firestore.`);
       }
       setIsAddModalOpen(false);
     } catch (err: any) {
-      toastError('Unable to Save Invoice', err?.message || 'Unable to save. Please check your connection and try again.');
+      toastError('Save Error', err?.message || 'Could not save invoice to Firestore.');
     }
   };
 
-  const handleOpenPaymentModal = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setPaymentAmount(invoice.balanceDue.toString());
-    setPaymentRef(`UPI-${Date.now().toString().slice(-6)}`);
-    setIsPaymentModalOpen(true);
-  };
-
-  const handleRecordPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedInvoice) return;
-
-    const amt = Number(paymentAmount) || 0;
-    if (amt <= 0) {
-      toastError('Invalid Amount', 'Payment amount must be greater than zero.');
-      return;
-    }
-
-    try {
-      const res = await addPayment({
-        id: `pay-${Date.now()}`,
-        invoiceId: selectedInvoice.id,
-        customerId: selectedInvoice.customerId,
-        amount: amt,
-        date: new Date().toISOString().split('T')[0],
-        method: paymentMethod,
-        referenceNumber: paymentRef.trim() || `TXN-${Date.now().toString().slice(-4)}`,
-        notes: paymentNotes,
-        createdAt: new Date().toISOString(),
-      });
-
-      if (res.success) {
-        success('Payment Recorded', `Received ${formatCurrency(amt)} for ${selectedInvoice.invoiceNumber}.`);
-        setIsPaymentModalOpen(false);
-      } else {
-        toastError('Payment Failed', res.error || 'Unable to record payment.');
-      }
-    } catch (err: any) {
-      toastError('Payment Error', err?.message || 'Unable to record payment.');
-    }
-  };
-
-  // Direct 1-Click Download PDF
-  const handleDownloadPDF = (invoice: Invoice) => {
-    const customer = getCustomer(invoice.customerId);
-    generateInvoicePDF(invoice, customer, settings);
-    const custName = (invoice.customerName || customer?.name || 'Customer').replace(/[^a-zA-Z0-9_-]/g, '_');
-    success('PDF Downloaded', `${custName}-${invoice.invoiceNumber}.pdf downloaded.`);
-  };
-
-  // Direct WhatsApp Share
-  const handleShareWhatsApp = (invoice: Invoice) => {
-    const custPhone = (invoice.customerPhone || getCustomer(invoice.customerId)?.phone || '').replace(
-      /[^0-9]/g,
-      ''
-    );
-    const cName = getCustomerName(invoice);
-    const text = `*TAX INVOICE — ${settings.companyName.toUpperCase()}*\n\nDear ${cName},\nThank you for choosing *${settings.companyName}*. Here are your invoice details:\n\n📄 *Invoice No:* ${invoice.invoiceNumber}\n🚛 *Vehicle No:* ${invoice.vehicleNo || 'TN 88 L 5186'}\n📍 *Move:* ${invoice.moveFromAddress || 'West Mambalam, Chennai'} ➔ ${invoice.moveToAddress || 'Sivagangai'}\n📅 *Date:* ${formatDate(invoice.date)}\n\n💰 *Total Amount:* ${formatCurrency(invoice.grandTotal)}\n✅ *Freight Paid:* ${formatCurrency(invoice.amountPaid)}\n*⚠️ Balance Due: ${formatCurrency(invoice.balanceDue)}*\n\n📍 *Office:* ${settings.address}\n📞 *Support:* ${settings.phone}\n\nThank you for trusting MKM Packers & Movers!`;
-    const finalPhone = custPhone.length === 10 ? '91' + custPhone : custPhone;
-    window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  // Safe Invoice Deletion
-  const handleDeleteInvoice = async (invoice: Invoice) => {
-    if (window.confirm(`Are you sure you want to delete invoice ${invoice.invoiceNumber}?`)) {
+  // Delete invoice
+  const handleDelete = async (id: string, number: string) => {
+    if (window.confirm(`Are you sure you want to delete Invoice ${number}?`)) {
       try {
-        await deleteInvoice(invoice.id);
-        success('Invoice Deleted', `Invoice ${invoice.invoiceNumber} has been removed.`);
+        await deleteInvoice(id);
+        success('Invoice Deleted', `Invoice ${number} removed from Firestore.`);
       } catch (err: any) {
-        toastError('Cannot Delete Invoice', err?.message || 'Invoice could not be deleted.');
+        toastError('Delete Failed', err?.message || 'Unable to delete invoice.');
       }
     }
   };
 
-  // Filter Invoices
-  const filteredInvoices = invoices.filter((inv) => {
-    const cName = getCustomerName(inv);
-    const cPhone = getCustomerPhone(inv);
-    const matchesSearch =
-      inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cPhone.includes(searchTerm) ||
-      (inv.vehicleNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (inv.moveFromAddress || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (inv.moveToAddress || '').toLowerCase().includes(searchTerm.toLowerCase());
+  // WhatsApp Share
+  const handleShareWhatsApp = (inv: Invoice) => {
+    const phone = inv.customerPhone ? inv.customerPhone.replace(/[^0-9]/g, '') : '';
+    const name = inv.customerName || 'Customer';
+    const message = `*INVOICE: ${inv.invoiceNumber}*
+MKM PACKERS AND MOVERS
+---------------------------------
+Client: ${name}
+Date: ${formatInvoiceDate(inv.date)}
+${inv.poNumber ? `PO No: ${inv.poNumber}\n` : ''}
+*Total Amount: Rs. ${inv.grandTotal.toLocaleString('en-IN')}/-*
 
-    const matchesStatus = statusFilter === 'ALL' || inv.status === statusFilter;
-    return matchesSearch && matchesStatus;
+Thank you for choosing MKM Packers & Movers!
+Hotline: ${settings.phone || '98405 46766, 93423 06048'}`;
+
+    const url = phone
+      ? `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(message)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
+  // Filtered invoices (search only)
+  const filteredInvoices = invoices.filter((inv) => {
+    return (
+      inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (inv.billToDetails || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (inv.customerPhone || '').includes(searchTerm) ||
+      (inv.poNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
   });
 
-  const totalInvoicedSum = invoices.reduce((sum, i) => sum + i.grandTotal, 0);
-  const totalPaidSum = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
-  const totalDueSum = invoices.reduce((sum, i) => sum + i.balanceDue, 0);
-
   return (
-    <div className="space-y-4">
-      {/* ULTRA SLIM MINI STATS BAR (Made very small as requested) */}
-      <div className="bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-          <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Invoiced:</span>
-          <span className="font-extrabold text-slate-900">{formatCurrency(totalInvoicedSum)}</span>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Collected:</span>
-          <span className="font-extrabold text-emerald-700">{formatCurrency(totalPaidSum)}</span>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-amber-500" />
-          <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">Pending Due:</span>
-          <span className="font-extrabold text-amber-900">{formatCurrency(totalDueSum)}</span>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-        <div className="flex items-center gap-1.5 text-slate-500 font-semibold text-[11px]">
-          <span>Total Invoices:</span>
-          <span className="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded-full">
-            {invoices.length}
-          </span>
-        </div>
-      </div>
-
-      {/* Header Search & Actions Bar */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          {/* Search bar */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              id="invoices-search-input"
-              type="text"
-              placeholder="Search by invoice #, customer, vehicle, route..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs placeholder:text-slate-400 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-            />
+    <div className="space-y-4 max-w-5xl mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-[#EAE5DC] shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FAF6F0] border border-[#E8DFD1] flex items-center justify-center text-[#9E7B4F] shadow-2xs">
+            <Receipt className="w-5 h-5" />
           </div>
-
-          {/* Right Toolbar */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            {/* View Mode Toggle */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-                className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                title="Table View"
-                className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                  viewMode === 'table'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-extrabold text-[#1A1D20] tracking-tight">
+                Tax Invoices
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EDE2] text-[#9E7B4F] border border-[#DFC9AE]">
+                {invoices.length} Total
+              </span>
             </div>
-
-            <Button
-              id="btn-add-invoice-modal"
-              variant="primary"
-              size="sm"
-              onClick={handleOpenCreateModal}
-              leftIcon={<Plus className="w-3.5 h-3.5 text-white" />}
-              className="font-bold shrink-0"
-            >
-              Issue Invoice
-            </Button>
+            <p className="text-[11px] text-[#718292] font-normal">
+              Official MKM customer tax invoices stored in Cloud Firestore
+            </p>
           </div>
         </div>
 
-        {/* Status Filter Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter:</span>
-          {[
-            { id: 'ALL', label: `All (${invoices.length})` },
-            { id: 'Unpaid', label: `Unpaid (${invoices.filter((i) => i.status === 'Unpaid').length})` },
-            {
-              id: 'Partially Paid',
-              label: `Partial (${invoices.filter((i) => i.status === 'Partially Paid').length})`,
-            },
-            { id: 'Paid', label: `Paid (${invoices.filter((i) => i.status === 'Paid').length})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id as any)}
-              className={`px-2.5 py-0.5 text-xs rounded-full font-medium transition-all cursor-pointer ${
-                statusFilter === tab.id
-                  ? 'bg-slate-900 text-white shadow-subtle font-semibold'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <Button
+          id="btn-create-invoice"
+          variant="primary"
+          size="md"
+          onClick={handleOpenAdd}
+          leftIcon={<Plus className="w-4 h-4 text-white" />}
+          className="w-full sm:w-auto font-bold bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white px-4 py-2 rounded-xl text-xs shadow-xs"
+        >
+          Create New Invoice
+        </Button>
+      </div>
+
+      {/* Clean Search Bar */}
+      <div className="bg-white p-3 rounded-2xl border border-[#EAE5DC] shadow-xs">
+        <div className="relative w-full">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#8C9CAE]" />
+          <input
+            type="text"
+            placeholder="Search by Invoice #, client name, address, PO No..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-[#FAF8F5] border border-[#EAE5DC] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9E7B4F] focus:bg-white transition-all"
+          />
         </div>
       </div>
 
-      {/* Main Content: Cards Grid or Table */}
+      {/* Invoices List - High-Visibility, Mobile-Optimized Cards */}
       {filteredInvoices.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Receipt className="w-8 h-8 text-slate-400" />}
-            title="No invoices found"
-            description="Create your first commercial tax invoice with custom handling and labour charges."
-            actionLabel="Issue Invoice"
-            onAction={handleOpenCreateModal}
-            actionIcon={<Plus className="w-3.5 h-3.5 mr-1" />}
-          />
-        </Card>
-      ) : viewMode === 'grid' ? (
-        /* CARD GRID VIEW */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredInvoices.map((inv) => {
-            const cName = getCustomerName(inv);
-            const cPhone = getCustomerPhone(inv);
-            return (
-              <div
-                key={inv.id}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-slate-300 transition-all duration-150 overflow-hidden flex flex-col justify-between"
-              >
-                <div className="p-4 space-y-2.5">
-                  {/* Card Top */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="font-mono font-black text-slate-900 text-sm block">
-                        {inv.invoiceNumber}
-                      </span>
-                      <p className="text-[11px] text-slate-500">Date: {formatDate(inv.date)}</p>
-                    </div>
-
-                    <Badge
-                      variant={
-                        inv.status === 'Paid'
-                          ? 'success'
-                          : inv.status === 'Partially Paid'
-                          ? 'warning'
-                          : 'danger'
-                      }
-                      dot
-                    >
-                      {inv.status}
-                    </Badge>
+        <EmptyState
+          title="No Invoices Found"
+          description={
+            searchTerm
+              ? 'No invoices match your search query.'
+              : 'Create your first Tax Invoice to store in Firestore.'
+          }
+          icon={<Receipt className="w-6 h-6" />}
+          action={
+            <Button
+              variant="primary"
+              onClick={handleOpenAdd}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="bg-[#9E7B4F] hover:bg-[#8A6A3E]"
+            >
+              Create New Invoice
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          {filteredInvoices.map((inv) => (
+            <div
+              key={inv.id}
+              className="bg-white border border-[#EAE5DC] rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all space-y-4"
+            >
+              {/* Card Top: Invoice #, PO Badge, Date */}
+              <div className="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-[#F5F1E8]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF6F0] border border-[#E8DFD1] flex items-center justify-center text-[#9E7B4F] shrink-0 font-black text-sm">
+                    #
                   </div>
-
-                  {/* Customer Information Strip */}
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs space-y-0.5">
-                    <p className="font-bold text-slate-900 truncate">{cName}</p>
-                    <p className="text-[11px] text-slate-600 flex items-center gap-1.5">
-                      <Phone className="w-3 h-3 text-slate-400" />
-                      <span>{cPhone || 'N/A'}</span>
-                      {inv.vehicleNo && (
-                        <span className="text-slate-400 font-normal">| 🚛 {inv.vehicleNo}</span>
-                      )}
-                    </p>
-                    {(inv.moveFromAddress || inv.moveToAddress) && (
-                      <p className="text-[10px] text-slate-500 truncate pt-0.5">
-                        📍 {inv.moveFromAddress?.split(',')[0]} ➔ {inv.moveToAddress?.split(',')[0]}
-                      </p>
+                  <div className="min-w-0">
+                    <span className="font-black text-base sm:text-lg text-[#1A1D20] tracking-tight block truncate">
+                      {inv.invoiceNumber}
+                    </span>
+                    {inv.poNumber && (
+                      <span className="text-[10px] font-bold text-[#9E7B4F]">
+                        PO No: {inv.poNumber}
+                      </span>
                     )}
-                  </div>
-
-                  {/* Financial Mini Grid */}
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase block">Total</span>
-                      <span className="text-xs font-black text-slate-900 block truncate">
-                        {formatCurrency(inv.grandTotal)}
-                      </span>
-                    </div>
-                    <div className="bg-emerald-50 p-1.5 rounded-lg border border-emerald-100">
-                      <span className="text-[9px] text-emerald-800 font-bold uppercase block">Paid</span>
-                      <span className="text-xs font-black text-emerald-800 block truncate">
-                        {formatCurrency(inv.amountPaid)}
-                      </span>
-                    </div>
-                    <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100">
-                      <span className="text-[9px] text-amber-900 font-bold uppercase block">Due</span>
-                      <span className="text-xs font-black text-amber-900 block truncate">
-                        {formatCurrency(inv.balanceDue)}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
-                {/* Card Action Footer */}
-                <div className="bg-slate-50/80 p-2.5 border-t border-slate-100 space-y-1.5">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadPDF(inv)}
-                      className="h-8 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download PDF</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleShareWhatsApp(inv)}
-                      className="h-8 px-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                      <span>WhatsApp</span>
-                    </button>
-                  </div>
-
-                  {/* Edit, Preview, Pay */}
-                  <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/50">
-                    <button
-                      onClick={() => handleOpenEditModal(inv)}
-                      className="py-0.5 px-2 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Edit</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setSelectedInvoice(inv);
-                        setIsPreviewModalOpen(true);
-                      }}
-                      className="py-0.5 px-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Eye className="w-3 h-3 text-slate-400" />
-                      <span>Preview</span>
-                    </button>
-
-                    {inv.balanceDue > 0 && (
-                      <button
-                        onClick={() => handleOpenPaymentModal(inv)}
-                        className="py-0.5 px-2 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <CreditCard className="w-3 h-3 text-emerald-600" />
-                        <span>Pay</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => handleDeleteInvoice(inv)}
-                      className="py-0.5 px-2 text-[11px] font-semibold text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                      title="Delete Invoice"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-[#506070] font-bold bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#EAE5DC]">
+                    {formatInvoiceDate(inv.date)}
+                  </span>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* TABLE VIEW */
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Grand Total</TableHead>
-                <TableHead>Paid</TableHead>
-                <TableHead>Balance Due</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInvoices.map((inv) => {
-                const cName = getCustomerName(inv);
-                const cPhone = getCustomerPhone(inv);
-                return (
-                  <TableRow
-                    key={inv.id}
-                    isClickable
+
+              {/* Client & Movement Info */}
+              <div className="space-y-1">
+                <p className="font-black text-base text-[#1A1D20] tracking-tight truncate">
+                  {inv.customerName || 'The Executive Engineer'}
+                </p>
+                <p className="text-xs text-[#718292] truncate flex items-center gap-1.5">
+                  <Building className="w-3.5 h-3.5 text-[#9E7B4F] shrink-0" />
+                  <span>
+                    {inv.billToDetails?.split('\n')[1] || inv.moveToAddress || 'Chennai Central'}
+                  </span>
+                </p>
+              </div>
+
+              {/* Prominent Grand Total Box */}
+              <div className="bg-[#FAF8F5] border border-[#EAE5DC] p-3 rounded-xl flex items-center justify-between">
+                <span className="text-xs font-bold text-[#718292] uppercase tracking-wider">
+                  Grand Total
+                </span>
+                <span className="font-black text-lg sm:text-xl text-[#1A1D20]">
+                  {formatRupeeDoc(inv.grandTotal)}
+                </span>
+              </div>
+
+              {/* Action Buttons: Big & Touch-Friendly on Mobile */}
+              <div className="pt-2 border-t border-[#F5F1E8] space-y-2">
+                {/* Primary Actions: Preview, PDF, WhatsApp */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
                     onClick={() => {
                       setSelectedInvoice(inv);
                       setIsPreviewModalOpen(true);
                     }}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-3 bg-[#FAF6F0] hover:bg-[#F5EDE2] active:scale-98 text-[#9E7B4F] border border-[#DFC9AE] font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="View paper preview"
                   >
-                    <TableCell>
-                      <span className="font-mono font-bold text-slate-900 text-xs">
-                        {inv.invoiceNumber}
-                      </span>
-                    </TableCell>
+                    <Eye className="w-4 h-4" />
+                    <span>Preview</span>
+                  </button>
 
-                    <TableCell>
-                      <div>
-                        <p className="font-bold text-slate-900 truncate">{cName}</p>
-                        <p className="text-[11px] text-slate-500">{cPhone}</p>
-                      </div>
-                    </TableCell>
+                  <button
+                    type="button"
+                    onClick={() => generateInvoicePDF(inv, undefined, settings)}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-3 bg-[#FAF8F5] hover:bg-[#F0EBE1] active:scale-98 text-[#1A1D20] border border-[#EAE5DC] font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="Download PDF"
+                  >
+                    <Download className="w-4 h-4 text-[#718292]" />
+                    <span>PDF</span>
+                  </button>
 
-                    <TableCell>
-                      <span className="text-xs font-semibold text-slate-700 font-mono">
-                        {inv.vehicleNo || 'TN 88 L 5186'}
-                      </span>
-                    </TableCell>
+                  <button
+                    type="button"
+                    onClick={() => handleShareWhatsApp(inv)}
+                    className="h-10 inline-flex items-center justify-center gap-1.5 px-3 text-emerald-800 hover:bg-emerald-100 active:scale-98 bg-[#E8F8F0] border border-emerald-300 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
+                    title="Share on WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4 text-emerald-600" />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
 
-                    <TableCell>
-                      <span className="text-slate-600 font-medium whitespace-nowrap text-xs">
-                        {formatDate(inv.date)}
-                      </span>
-                    </TableCell>
+                {/* Secondary Actions: Edit & Delete */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(inv)}
+                    className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-98 border border-slate-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                    title="Edit Invoice"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit Invoice</span>
+                  </button>
 
-                    <TableCell>
-                      <span className="font-black text-slate-900 whitespace-nowrap">
-                        {formatCurrency(inv.grandTotal)}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="font-bold text-emerald-700 whitespace-nowrap">
-                        {formatCurrency(inv.amountPaid)}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      {inv.balanceDue > 0 ? (
-                        <span className="font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded text-[11px] border border-amber-200 whitespace-nowrap">
-                          {formatCurrency(inv.balanceDue)}
-                        </span>
-                      ) : (
-                        <span className="text-emerald-700 font-bold text-[11px]">Paid</span>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge
-                        variant={
-                          inv.status === 'Paid'
-                            ? 'success'
-                            : inv.status === 'Partially Paid'
-                            ? 'warning'
-                            : 'danger'
-                        }
-                        dot
-                      >
-                        {inv.status}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleOpenEditModal(inv)}
-                          title="Edit Invoice"
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPDF(inv)}
-                          title="Download PDF"
-                          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleShareWhatsApp(inv)}
-                          title="Send WhatsApp"
-                          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                        {inv.balanceDue > 0 && (
-                          <button
-                            onClick={() => handleOpenPaymentModal(inv)}
-                            title="Record Payment"
-                            className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteInvoice(inv)}
-                          title="Delete Invoice"
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(inv.id, inv.invoiceNumber)}
+                    className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-98 border border-rose-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                    title="Delete Invoice"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* ==================== SUPER SIMPLE & INTUITIVE INVOICE MODAL ==================== */}
+      {/* ==================== CREATE / EDIT INVOICE MODAL ==================== */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title={editingInvoiceId ? 'Edit Tax Invoice' : 'Create Tax Invoice'}
-        subtitle="Quickly adjust client, route, handling & labour charges, and payment balance"
-        maxWidth="3xl"
+        title={editingInvoiceId ? `Edit Invoice: ${invoiceNumber}` : 'Generate Tax Invoice'}
+        size="lg"
       >
         <form onSubmit={handleSaveInvoice} className="space-y-4 text-xs">
-          {/* 1. Customer & Route Card */}
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
-            <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] block">
-              1. Customer & Move Details
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Customer Name *</label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-600 focus:outline-none"
-                  placeholder="e.g. Ganesh"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Mobile Phone *</label>
-                <input
-                  type="text"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-600 focus:outline-none"
-                  placeholder="9884834664"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Assigned Vehicle No. *</label>
-                <input
-                  type="text"
-                  value={vehicleNo}
-                  onChange={(e) => setVehicleNo(e.target.value)}
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-indigo-600 focus:outline-none"
-                  placeholder="TN 88 L 5186"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Move From (Origin) *</label>
-                <input
-                  type="text"
-                  value={moveFromAddress}
-                  onChange={(e) => setMoveFromAddress(e.target.value)}
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 focus:outline-none"
-                  placeholder="West Mambalam, Chennai"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Move To (Destination) *</label>
-                <input
-                  type="text"
-                  value={moveToAddress}
-                  onChange={(e) => setMoveToAddress(e.target.value)}
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 focus:outline-none"
-                  placeholder="Senthamizh Nagar, Sivagangai"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Invoice Date *</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 focus:outline-none"
-                  required
-                />
-              </div>
-            </div>
+          {/* Top Meta Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <Input
+              label="Invoice Number *"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              required
+            />
+            <Input
+              label="Invoice Date *"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+            <Input
+              label="PO Number (Optional)"
+              value={poNumber}
+              onChange={(e) => setPoNumber(e.target.value)}
+              placeholder="e.g. PO-9842"
+            />
           </div>
 
-          {/* 2. Handling & Labour Charges Table */}
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                <Truck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>2. Handling, Labour & Moving Charges</span>
-              </span>
+          {/* GST Option */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select
+              label="GST Tax Rate"
+              value={gstType}
+              onChange={(e) => setGstType(e.target.value)}
+              options={[
+                { value: 'NILL', label: 'NILL (No GST Tax Applicable)' },
+                { value: '18% GST (9% CGST + 9% SGST)', label: '18% GST (9% CGST + 9% SGST)' },
+              ]}
+            />
+            {gstType.includes('18%') && (
+              <Input
+                label="Customer GSTIN Number"
+                value={customGstin}
+                onChange={(e) => setCustomGstin(e.target.value)}
+                placeholder="33ADVPU2567L3ZM"
+              />
+            )}
+          </div>
 
-              {/* Quick Add Presets */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem(
-                      'Transportation Freight Charges',
-                      12000,
-                      'Dedicated shifting vehicle freight'
-                    )
-                  }
-                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + 🚛 Transport
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem(
-                      'Handling & Labour Charges',
-                      3500,
-                      'Loading and unloading assistance'
-                    )
-                  }
-                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + 👥 Labour/Handling
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem(
-                      'Packing Materials Charges',
-                      2500,
-                      'Carton boxes and protection material'
-                    )
-                  }
-                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + 📦 Packing
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAddPresetItem('Custom Charge', 1000, 'Additional shifting service')
-                  }
-                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
-                >
-                  + ➕ Add Custom
-                </button>
-              </div>
+          {/* BILL TO Block (Email removed) */}
+          <div className="p-3.5 bg-[#FAF6F0] rounded-xl border border-[#DFC9AE] space-y-3">
+            <div className="flex items-center gap-1.5 font-bold text-[#1A1D20] text-xs">
+              <Building className="w-3.5 h-3.5 text-[#9E7B4F]" />
+              <span>BILL TO (Consignee / Organization Details)</span>
             </div>
 
-            {/* Charges List - Clean & Spacious */}
-            <div className="space-y-2 bg-slate-100/70 p-2.5 rounded-2xl border border-slate-200">
-              {items.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs space-y-2 transition-all hover:border-slate-300"
-                >
-                  {/* Top Row: Service Name & Description + Delete */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 space-y-1">
-                      <input
-                        type="text"
-                        value={item.service}
-                        onChange={(e) => handleItemChange(index, 'service', e.target.value)}
-                        placeholder="Service Title (e.g. Handling & Labour Charges)"
-                        className="w-full font-extrabold text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-600 focus:outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                        placeholder="Details / Specifications (e.g. Loading crew & packing boxes)"
-                        className="w-full text-[11px] text-slate-500 px-2.5 py-1 bg-slate-50/50 border border-slate-100 rounded-lg focus:bg-white focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Customer / Attention Title *"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="The Executive Engineer"
+                required
+              />
+              <Input
+                label="Department / Division"
+                value={divisionDept}
+                onChange={(e) => setDivisionDept(e.target.value)}
+                placeholder="AOBM"
+              />
+            </div>
 
-                    {items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        title="Remove Charge"
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+            <Textarea
+              label="Organization Name & Address *"
+              rows={2}
+              value={organizationAddress}
+              onChange={(e) => setOrganizationAddress(e.target.value)}
+              placeholder="Chennai Metropolitan Water Supply, Chennai 600028."
+              required
+            />
+
+            <Input
+              label="Customer Contact Phone"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="98405 46766"
+            />
+          </div>
+
+          {/* Particulars / Items */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-900">Particulars / Description</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setItems((prev) => [
+                    ...prev,
+                    {
+                      id: Date.now().toString(),
+                      service: 'Additional Loading / Transport Charges',
+                      description: '',
+                      qty: 1,
+                      unitPrice: 2000,
+                      discount: 0,
+                      amount: 2000,
+                    },
+                  ])
+                }
+                className="text-xs font-bold text-[#9E7B4F] hover:text-[#8A6A3E] flex items-center gap-1 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Add Item Line</span>
+              </button>
+            </div>
+
+            {items.map((item, idx) => (
+              <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      label="Service Title"
+                      value={item.service}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        updated[idx].service = e.target.value;
+                        setItems(updated);
+                      }}
+                      placeholder="Transportation charges for Office Furniture's"
+                    />
+                    <Textarea
+                      label="Detailed Description"
+                      rows={2}
+                      value={item.description}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        updated[idx].description = e.target.value;
+                        setItems(updated);
+                      }}
+                      placeholder="Amma Maaligai Chennai Central to CMWSSB Head Office Chintadripet..."
+                    />
                   </div>
 
-                  {/* Bottom Row: Rate, Qty & Amount */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
-                    <div className="flex items-center gap-3">
-                      {/* Rate (₹) */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-slate-500">Rate (₹):</span>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
-                            className="w-28 sm:w-32 h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-900 text-right focus:border-indigo-600 focus:outline-none"
-                          />
-                        </div>
-                      </div>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                      className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer mt-5"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
 
-                      {/* Qty */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-slate-500">Qty:</span>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
-                          className="w-14 h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 text-center focus:border-indigo-600 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Computed Total Badge */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-slate-500">Total:</span>
-                      <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-900 font-black text-xs rounded-lg">
-                        {formatCurrency(item.amount)}
-                      </span>
-                    </div>
+                <div className="flex justify-end">
+                  <div className="w-44">
+                    <Input
+                      label="Amount (Rs.) *"
+                      type="number"
+                      value={item.amount}
+                      onChange={(e) => {
+                        const updated = [...items];
+                        const val = Number(e.target.value) || 0;
+                        updated[idx].unitPrice = val;
+                        updated[idx].amount = val;
+                        setItems(updated);
+                      }}
+                      required
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
 
-          {/* 3. Payment & Totals */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div className="space-y-2">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                  Freight Paid / Advance Received (₹)
-                </label>
-                <input
-                  type="number"
-                  value={amountPaidInit}
-                  onChange={(e) => setAmountPaidInit(e.target.value)}
-                  placeholder="0"
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:border-indigo-600 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Special Discount (₹)</label>
-                <input
-                  type="number"
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  placeholder="0"
-                  className="w-full h-8.5 px-2.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 focus:outline-none"
-                />
-              </div>
+          {/* Totals Summary */}
+          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2">
+            <div className="flex justify-between text-slate-300">
+              <span>Subtotal:</span>
+              <span className="font-bold text-white">{formatRupeeDoc(calculateSubtotal())}</span>
             </div>
-
-            {/* Financial Summary */}
-            <div className="bg-slate-900 text-white p-3 rounded-xl space-y-1.5">
-              <div className="flex justify-between text-xs text-slate-300">
-                <span>Subtotal:</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              {discountVal > 0 && (
-                <div className="flex justify-between text-xs text-amber-300">
-                  <span>Discount:</span>
-                  <span>-{formatCurrency(discountVal)}</span>
+            {gstType.includes('18%') && (
+              <>
+                <div className="flex justify-between text-slate-300">
+                  <span>Central Tax 9%:</span>
+                  <span>{formatRupeeDoc(calculateTax() / 2)}</span>
                 </div>
-              )}
-              <div className="pt-1.5 border-t border-slate-700 flex justify-between items-center text-sm font-black text-amber-400">
-                <span>Grand Total:</span>
-                <span>{formatCurrency(grandTotal)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-emerald-400 font-bold">
-                <span>Paid Advance:</span>
-                <span>{formatCurrency(initPaid)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-amber-200 font-black border-t border-slate-800 pt-1">
-                <span>Balance Due:</span>
-                <span>{formatCurrency(balanceDue)}</span>
-              </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>State Tax 9%:</span>
+                  <span>{formatRupeeDoc(calculateTax() / 2)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between items-center text-slate-300">
+              <span>Other Charges:</span>
+              <input
+                type="number"
+                value={otherCharges}
+                onChange={(e) => setOtherCharges(e.target.value)}
+                className="w-24 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-right text-white font-mono text-xs"
+              />
+            </div>
+            <div className="pt-2 border-t border-slate-700 flex justify-between items-center text-sm font-extrabold text-amber-400">
+              <span>TOTAL INVOICE AMOUNT:</span>
+              <span className="text-base">{formatRupeeDoc(calculateGrandTotal())}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsAddModalOpen(false)}>
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit">
-              {editingInvoiceId ? 'Save Invoice' : 'Create Invoice'}
+            <Button
+              variant="primary"
+              type="submit"
+              className="bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white"
+            >
+              {editingInvoiceId ? 'Save Changes' : 'Store Invoice in Firestore'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* ==================== RECORD PAYMENT MODAL ==================== */}
-      {selectedInvoice && (
-        <Modal
-          isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          title={`Record Payment — ${selectedInvoice.invoiceNumber}`}
-          subtitle={`Customer: ${getCustomerName(selectedInvoice)} • Balance: ${formatCurrency(selectedInvoice.balanceDue)}`}
-          maxWidth="md"
-        >
-          <form onSubmit={handleRecordPayment} className="space-y-3.5 text-xs">
-            <Input
-              label="Payment Amount (₹) *"
-              type="number"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              required
-            />
-            <Select
-              label="Payment Method *"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-              options={[
-                { label: 'UPI / PhonePe / GPay', value: 'UPI' },
-                { label: 'Cash Settlement', value: 'Cash' },
-                { label: 'Bank Transfer / NEFT', value: 'Bank Transfer' },
-                { label: 'Card / Cheque', value: 'Card' },
-              ]}
-            />
-            <Input
-              label="Transaction / UTR Reference #"
-              placeholder="e.g. UPI-9821739281"
-              value={paymentRef}
-              onChange={(e) => setPaymentRef(e.target.value)}
-            />
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <Button variant="outline" size="sm" type="button" onClick={() => setIsPaymentModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" type="submit">
-                Record Payment
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* ==================== DOCUMENT PREVIEW MODAL (CLEAN TAX INVOICE) ==================== */}
+      {/* ==================== EXACT PHYSICAL INVOICE PREVIEW MODAL ==================== */}
       {selectedInvoice && (
         <Modal
           isOpen={isPreviewModalOpen}
           onClose={() => setIsPreviewModalOpen(false)}
-          title="Tax Invoice"
-          subtitle={`Document #${selectedInvoice.invoiceNumber}`}
-          maxWidth="3xl"
-          footer={
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between w-full gap-2">
-              <div>
-                {selectedInvoice.balanceDue > 0 ? (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setIsPreviewModalOpen(false);
-                      handleOpenPaymentModal(selectedInvoice);
-                    }}
-                    leftIcon={<CreditCard className="w-3.5 h-3.5" />}
-                  >
-                    Record Payment ({formatCurrency(selectedInvoice.balanceDue)} Due)
-                  </Button>
-                ) : (
-                  <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Paid in Full
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsPreviewModalOpen(false);
-                    handleOpenEditModal(selectedInvoice);
-                  }}
-                  leftIcon={<Edit3 className="w-3.5 h-3.5 text-indigo-600" />}
-                >
-                  Edit
-                </Button>
-
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleDownloadPDF(selectedInvoice)}
-                  leftIcon={<Download className="w-3.5 h-3.5" />}
-                >
-                  Download PDF
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  leftIcon={<Printer className="w-3.5 h-3.5" />}
-                >
-                  Print
-                </Button>
-              </div>
-            </div>
-          }
+          title={`Invoice Preview: ${selectedInvoice.invoiceNumber}`}
+          size="lg"
         >
-          {/* Printable Document Preview matching PDF reference */}
-          <div className="space-y-4 bg-white text-xs print:p-0">
-            {/* Dark Header Banner */}
-            <div className="bg-slate-900 -mx-6 -mt-6 p-5 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="MKM Logo"
-                  className="w-12 h-12 rounded-full object-cover ring-2 ring-amber-400 bg-white shrink-0"
-                />
-                <div>
-                  <h2 className="text-base font-black tracking-tight text-white">
-                    {settings.companyName.toUpperCase()}
-                  </h2>
-                  <p className="text-slate-300 text-[11px] max-w-sm mt-0.5 leading-tight">{settings.address}</p>
-                  <p className="text-slate-400 text-[10px] mt-1">
-                    GSTIN: {settings.gstNumber || '33ADVPU2567L3ZM'} &nbsp;|&nbsp; Phone: 09840546766 &nbsp;|&nbsp; Email: {settings.email}
-                  </p>
+          <div className="space-y-4">
+            {/* Action Bar */}
+            <div className="flex justify-end gap-2 bg-slate-100 p-2 rounded-xl">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => window.print()}
+                leftIcon={<Printer className="w-3.5 h-3.5" />}
+              >
+                Print Direct
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => generateInvoicePDF(selectedInvoice, undefined, settings)}
+                leftIcon={<Download className="w-3.5 h-3.5" />}
+                className="bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white"
+              >
+                Download PDF
+              </Button>
+            </div>
+
+            {/* Paper Document Preview */}
+            <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-300 shadow-md font-sans text-slate-900 space-y-6 max-w-2xl mx-auto">
+              {/* Header */}
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex items-start gap-3 min-w-0 max-w-[60%]">
+                  <img
+                    src={
+                      settings.logoUrl && settings.logoUrl.startsWith('data:')
+                        ? settings.logoUrl
+                        : MKM_LOGO_BASE64
+                    }
+                    alt="MKM Logo"
+                    className="w-12 h-12 rounded-full object-contain ring-1 ring-cyan-600 bg-white shrink-0 p-0.5"
+                  />
+                  <div className="space-y-0.5 min-w-0">
+                    <h1 className="text-base font-black text-[#2B7A9B] tracking-wide uppercase truncate">
+                      {settings.companyName || 'MKM PACKERS AND MOVERS'}
+                    </h1>
+                    <p className="text-[10px] font-bold text-slate-800 leading-tight whitespace-pre-line">
+                      {settings.address ||
+                        'NEW NO 13 OLD NO 6, VALLALAR STREET,\nPADMANABA NAGAR, CHOOLAIMEDU, CHENNAI 600 094.'}
+                    </p>
+                    <p className="text-[10px] text-slate-700">Phone: {settings.phone || '98405 46766, 93423 06048'}</p>
+                    <p className="text-[10px] text-slate-700">Website: {settings.website || 'www.mkmpackersandmovers.com'}</p>
+                    <p className="text-[10px] text-slate-700">Mail: {settings.email || 'mkmpackersandmovers@gmail.com'}</p>
+                  </div>
+                </div>
+
+                <div className="text-right space-y-1.5">
+                  <h2 className="text-2xl font-black text-[#5B9BD5] uppercase tracking-wider">INVOICE</h2>
+                  <table className="text-[10px] border border-slate-300 border-collapse ml-auto">
+                    <tbody>
+                      <tr className="border-b border-slate-300">
+                        <td className="px-2 py-1 font-bold bg-slate-50 border-r border-slate-300 text-left">DATE</td>
+                        <td className="px-3 py-1 text-left">{formatInvoiceDate(selectedInvoice.date)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-300">
+                        <td className="px-2 py-1 font-bold bg-slate-100 border-r border-slate-300 text-left">INVOICE #</td>
+                        <td className="px-3 py-1 font-semibold text-left">{selectedInvoice.invoiceNumber}</td>
+                      </tr>
+                      <tr className="border-b border-slate-300">
+                        <td className="px-2 py-1 font-bold bg-slate-50 border-r border-slate-300 text-left">GST</td>
+                        <td className="px-3 py-1 text-left">{selectedInvoice.gstType || 'NILL'}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-2 py-1 font-bold bg-slate-100 border-r border-slate-300 text-left">PO NO:</td>
+                        <td className="px-3 py-1 text-left">{selectedInvoice.poNumber || ''}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div className="text-left sm:text-right shrink-0">
-                <span className="text-amber-400 font-black text-sm uppercase tracking-wider block">
-                  TAX INVOICE
-                </span>
-                <p className="text-sm font-black text-white font-mono mt-0.5">
-                  {selectedInvoice.invoiceNumber}
-                </p>
-                <p className="text-slate-300 text-[11px]">Date: {formatDate(selectedInvoice.date)}</p>
-                <p className="text-slate-300 text-[11px]">Due Date: {formatDate(selectedInvoice.dueDate || selectedInvoice.date)}</p>
-              </div>
-            </div>
-
-            {/* Sub-Cards: Billed To vs Destination & Dispatch */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  BILLED TO (CONSIGNOR):
-                </span>
-                <h4 className="text-sm font-bold text-slate-900">
-                  {getCustomerName(selectedInvoice)}
-                </h4>
-                <p className="text-slate-600 text-xs">Phone: {getCustomerPhone(selectedInvoice)}</p>
-                <p className="text-slate-600 text-xs">
-                  Pickup: {selectedInvoice.moveFromAddress || 'West Mambalam, Chennai'}
-                </p>
-                <div className="pt-1">
-                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                    selectedInvoice.status === 'Paid'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : selectedInvoice.status === 'Partially Paid'
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-rose-100 text-rose-800'
-                  }`}>
-                    Status: {selectedInvoice.status.toUpperCase()}
-                  </span>
+              {/* BILL TO Banner */}
+              <div className="space-y-2">
+                <div className="bg-[#2B7A9B] text-white px-3 py-1 font-bold text-xs inline-block w-48 uppercase tracking-wider">
+                  BILL TO
+                </div>
+                <div className="pl-3 text-xs font-bold text-slate-900 whitespace-pre-line leading-relaxed">
+                  {selectedInvoice.billToDetails ||
+                    `${selectedInvoice.customerName}\nAOBM\nChennai Metropolitan Water Supply\nChennai 600028.`}
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  DESTINATION & DISPATCH DETAILS:
-                </span>
-                <p className="text-slate-900 font-bold text-xs">
-                  Drop: {selectedInvoice.moveToAddress || 'Senthamizh Nagar, Sivagangai'}
-                </p>
-                <p className="text-slate-600 text-xs">Vehicle: {selectedInvoice.vehicleNo || '14ft Closed Container'}</p>
-                <p className="text-slate-600 text-xs">Moving Date: {formatDate(selectedInvoice.dueDate || selectedInvoice.date)}</p>
-                <p className="text-indigo-700 font-semibold text-xs">Support Hotline: 09840546766</p>
+              {/* DESCRIPTION TABLE */}
+              <div className="border border-[#2B7A9B] rounded-none overflow-hidden">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#2B7A9B] text-white font-bold">
+                      <th className="px-3 py-1.5 text-left border-r border-white/30">DESCRIPTION</th>
+                      <th className="px-2 py-1.5 text-center border-r border-white/30 w-16">TAXED</th>
+                      <th className="px-3 py-1.5 text-right w-28">AMOUNT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedInvoice.items && selectedInvoice.items.length > 0 ? (
+                      selectedInvoice.items.map((item, idx) => (
+                        <tr key={idx} className="border-b border-slate-200">
+                          <td className="px-3 py-2 text-slate-800 border-r border-slate-200">
+                            <div className="font-semibold">{item.service}</div>
+                            {item.description && (
+                              <div className="text-[11px] text-slate-600 whitespace-pre-line mt-0.5">
+                                {item.description}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 text-center border-r border-slate-200 text-slate-400">
+                            {selectedInvoice.tax > 0 ? '✓' : ''}
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold text-slate-900">
+                            {formatRupeeDoc(item.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="border-b border-slate-200">
+                        <td className="px-3 py-2 text-slate-800 border-r border-slate-200 whitespace-pre-line">
+                          Transportation charges for Office Furniture's<br />
+                          Amma Maaligai Chennai Central to CMWSSB Head Office Chintadripet<br />
+                          The rate inclusive of packing material, loading and un-loading charges
+                        </td>
+                        <td className="px-2 py-2 text-center border-r border-slate-200"></td>
+                        <td className="px-3 py-2 text-right font-bold text-slate-900">
+                          {formatRupeeDoc(selectedInvoice.grandTotal)}
+                        </td>
+                      </tr>
+                    )}
+                    {/* Visual padding row */}
+                    <tr className="h-16 border-b border-slate-200 bg-slate-50/40">
+                      <td className="border-r border-slate-200"></td>
+                      <td className="border-r border-slate-200"></td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </div>
 
-            {/* Charges Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-              <table className="w-full text-left">
-                <thead className="bg-slate-900 text-white font-bold text-[11px]">
-                  <tr>
-                    <th className="p-2.5 text-center w-10">#</th>
-                    <th className="p-2.5">Service Description</th>
-                    <th className="p-2.5 text-right">Rate</th>
-                    <th className="p-2.5 text-center w-14">Qty</th>
-                    <th className="p-2.5 text-right w-28">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                  {selectedInvoice.items.map((item, idx) => (
-                    <tr key={item.id} className={idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}>
-                      <td className="p-2.5 text-center font-bold text-slate-400">{idx + 1}</td>
-                      <td className="p-2.5">
-                        <p className="font-bold text-slate-900">{item.service}</p>
-                        {item.description && (
-                          <p className="text-[11px] text-slate-500">{item.description}</p>
-                        )}
-                      </td>
-                      <td className="p-2.5 text-right">{formatCurrency(item.unitPrice)}</td>
-                      <td className="p-2.5 text-center">{item.qty}</td>
-                      <td className="p-2.5 text-right font-bold text-slate-900">
-                        {formatCurrency(item.amount)}
+              {/* SUMMARY TABLE */}
+              <div className="flex justify-end">
+                <table className="text-xs border border-slate-200 w-64 border-collapse">
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="px-3 py-1 font-bold text-right text-slate-700">Subtotal</td>
+                      <td className="px-3 py-1 text-right font-bold border-l border-slate-200">
+                        {formatRupeeDoc(selectedInvoice.subtotal || selectedInvoice.grandTotal)}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Totals Box & Words */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start pt-1">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block">Rupees in Words:</span>
-                <p className="text-slate-900 font-bold text-xs">
-                  {numberToWordsIndian(selectedInvoice.grandTotal)}
-                </p>
-                {selectedInvoice.notes && (
-                  <div className="pt-2 border-t border-slate-200/80 mt-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Terms & Remarks:</span>
-                    <p className="text-slate-600 text-[11px]">{selectedInvoice.notes}</p>
-                  </div>
-                )}
+                    <tr className="border-b border-slate-200">
+                      <td className="px-3 py-1 font-normal text-right text-slate-700">Taxable</td>
+                      <td className="px-3 py-1 border-l border-slate-200"></td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="px-3 py-1 font-normal text-right text-slate-700">Central Tax 9%</td>
+                      <td className="px-3 py-1 text-right border-l border-slate-200">
+                        {selectedInvoice.tax > 0 ? formatRupeeDoc(selectedInvoice.tax / 2) : 'Nill'}
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="px-3 py-1 font-normal text-right text-slate-700">State Tax 9%</td>
+                      <td className="px-3 py-1 text-right border-l border-slate-200">
+                        {selectedInvoice.tax > 0 ? formatRupeeDoc(selectedInvoice.tax / 2) : ''}
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="px-3 py-1 font-normal text-right text-slate-700">Other</td>
+                      <td className="px-3 py-1 text-right border-l border-slate-200">
+                        {selectedInvoice.otherCharges ? formatRupeeDoc(selectedInvoice.otherCharges) : 'Nill'}
+                      </td>
+                    </tr>
+                    <tr className="bg-[#C5E0F5] font-black border-t-2 border-[#2B7A9B]">
+                      <td className="px-3 py-1.5 text-right text-slate-900 font-bold">TOTAL</td>
+                      <td className="px-3 py-1.5 text-right font-bold text-slate-950 border-l border-[#2B7A9B]">
+                        {formatRupeeDoc(selectedInvoice.grandTotal)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-600">
-                  <span>Subtotal:</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(selectedInvoice.subtotal)}</span>
-                </div>
-                {selectedInvoice.discount > 0 && (
-                  <div className="flex justify-between text-rose-600 font-semibold">
-                    <span>Discount:</span>
-                    <span>-{formatCurrency(selectedInvoice.discount)}</span>
-                  </div>
-                )}
-                {selectedInvoice.tax > 0 && (
-                  <div className="flex justify-between text-slate-600">
-                    <span>GST Tax ({settings.taxRate}%):</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(selectedInvoice.tax)}</span>
-                  </div>
-                )}
-                <div className="pt-1.5 border-t border-slate-200 flex justify-between items-center text-sm font-black text-slate-900">
-                  <span>Grand Total:</span>
-                  <span>{formatCurrency(selectedInvoice.grandTotal)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs font-bold text-emerald-700">
-                  <span>Amount Paid:</span>
-                  <span>{formatCurrency(selectedInvoice.amountPaid)}</span>
-                </div>
-                <div className={`flex justify-between items-center text-xs font-bold ${
-                  selectedInvoice.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-700'
-                }`}>
-                  <span>Balance Due:</span>
-                  <span>{formatCurrency(selectedInvoice.balanceDue)}</span>
-                </div>
+              {/* Sign-off */}
+              <div className="pt-4 text-right">
+                <p className="text-xs font-normal text-slate-800">
+                  For <span className="font-bold text-[#2B7A9B]">MKM PACKERS AND MOVERS</span>
+                </p>
               </div>
             </div>
           </div>

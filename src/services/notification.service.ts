@@ -2,11 +2,11 @@ import { Booking, Invoice, Lead, Quotation, BusinessAlert } from '../types';
 import { formatIndianCurrency, formatBusinessDate } from '../utils/calculations';
 
 export class NotificationService {
-  public static getBusinessAlerts(data: {
-    bookings: Booking[];
-    invoices: Invoice[];
-    leads: Lead[];
-    quotations: Quotation[];
+  public static getBusinessAlerts(data?: {
+    bookings?: Booking[];
+    invoices?: Invoice[];
+    leads?: Lead[];
+    quotations?: Quotation[];
   }): BusinessAlert[] {
     const alerts: BusinessAlert[] = [];
     const todayStr = new Date().toISOString().split('T')[0];
@@ -14,9 +14,14 @@ export class NotificationService {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
+    const safeBookings = data?.bookings || [];
+    const safeInvoices = data?.invoices || [];
+    const safeLeads = data?.leads || [];
+    const safeQuotations = data?.quotations || [];
+
     // 1. Moves Scheduled Today
-    const todayMoves = data.bookings.filter(
-      (b) => b.movingDate === todayStr && b.status !== 'Completed' && b.status !== 'Cancelled'
+    const todayMoves = safeBookings.filter(
+      (b) => b?.movingDate === todayStr && b?.status !== 'Completed' && b?.status !== 'Cancelled'
     );
     if (todayMoves.length > 0) {
       alerts.push({
@@ -32,8 +37,8 @@ export class NotificationService {
     }
 
     // 2. Moves Scheduled Tomorrow
-    const tomorrowMoves = data.bookings.filter(
-      (b) => b.movingDate === tomorrowStr && b.status !== 'Completed' && b.status !== 'Cancelled'
+    const tomorrowMoves = safeBookings.filter(
+      (b) => b?.movingDate === tomorrowStr && b?.status !== 'Completed' && b?.status !== 'Cancelled'
     );
     if (tomorrowMoves.length > 0) {
       alerts.push({
@@ -49,10 +54,10 @@ export class NotificationService {
     }
 
     // 3. Unassigned Drivers / Vehicles
-    const unassignedMoves = data.bookings.filter(
+    const unassignedMoves = safeBookings.filter(
       (b) =>
-        (b.status === 'Confirmed' || b.status === 'Packing') &&
-        (!b.driver || b.driver.toLowerCase().includes('assigned') || !b.vehicle)
+        (b?.status === 'Confirmed' || b?.status === 'Packing') &&
+        (!b?.driver || b.driver.toLowerCase().includes('assigned') || !b?.vehicle)
     );
     if (unassignedMoves.length > 0) {
       alerts.push({
@@ -68,11 +73,11 @@ export class NotificationService {
     }
 
     // 4. Overdue Invoices
-    const overdueInvoices = data.invoices.filter(
-      (i) => i.balanceDue > 0 && i.dueDate && new Date(i.dueDate) < new Date(todayStr)
+    const overdueInvoices = safeInvoices.filter(
+      (i) => (i?.balanceDue || 0) > 0 && i?.dueDate && new Date(i.dueDate) < new Date(todayStr)
     );
     if (overdueInvoices.length > 0) {
-      const totalOverdue = overdueInvoices.reduce((sum, i) => sum + i.balanceDue, 0);
+      const totalOverdue = overdueInvoices.reduce((sum, i) => sum + (i?.balanceDue || 0), 0);
       alerts.push({
         id: `alert-overdue-invoices`,
         type: 'urgent',
@@ -86,7 +91,7 @@ export class NotificationService {
     }
 
     // 5. Hot Leads needing Follow-up
-    const followUpLeads = data.leads.filter((l) => l.status === 'New' || l.status === 'Follow-up');
+    const followUpLeads = safeLeads.filter((l) => l?.status === 'New' || l?.status === 'Follow-up');
     if (followUpLeads.length > 0) {
       alerts.push({
         id: `alert-followup-leads`,

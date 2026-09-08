@@ -1,21 +1,49 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Quotation, Customer, CompanySettings, Booking } from '../types';
-import { formatDate } from './index';
 import { numberToWordsIndian } from './calculations';
 import { MKM_LOGO_BASE64 } from '../assets/logo';
 
 export { numberToWordsIndian };
 
+// Helper to format currency like "14,000/-"
+export const formatRupeeDoc = (amount: number | string | undefined | null): string => {
+  const num = Number(amount) || 0;
+  return `${num.toLocaleString('en-IN')}/-`;
+};
+
+// Helper to format date like "20.12.2025" or "17-DEC-2025"
+export const formatInvoiceDate = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  } catch {
+    return dateStr || '';
+  }
+};
+
+export const formatQuotationDate = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch {
+    return dateStr || '';
+  }
+};
+
 /**
- * GENERATE CLEAN, ROBUST & ADVANCED COMMERCIAL TAX INVOICE PDF
- * - Dark Elegant Obsidian Header Banner with Circular MKM Logo
- * - Gold "TAX INVOICE" header title & Invoice details
- * - Multiline wrapped origin/destination cards without .slice() truncation
- * - Multiline autoTable service description wrapping
- * - Right-aligned financial summary with clear Paid/Due indicators
- * - Single Phone Number: 09840546766
- * - File Name: [CustomerName]-[InvoiceNumber].pdf
+ * GENERATE EXACT TAX INVOICE PDF MATCHING PHYSICAL PAPER FORMAT (IMAGE 1)
  */
 export const generateInvoicePDF = (
   invoice: Invoice,
@@ -29,334 +57,288 @@ export const generateInvoicePDF = (
   });
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const margin = 12;
-  const contentWidth = pageWidth - margin * 2; // 186mm
-  const primaryPhone = '09840546766';
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2; // 182mm
 
-  // ==================== 1. DARK OBSIDIAN BRAND HEADER ====================
-  const headerHeight = 36;
-  doc.setFillColor(15, 23, 42); // #0F172A Dark Slate / Obsidian
-  doc.rect(0, 0, pageWidth, headerHeight, 'F');
+  // Colors based on the printed template
+  const primaryTeal = [43, 122, 155]; // #2B7A9B Brand Teal / Slate Blue
+  const invoiceBlue = [91, 155, 213]; // #5B9BD5 Soft Sky Blue for "INVOICE" Title
+  const lightRowBlue = [240, 246, 252]; // Light striped rows
+  const highlightBlue = [197, 224, 245]; // Highlight strip for total
 
-  // MKM Circular Logo
+  // ==================== 1. HEADER SECTION ====================
+  let currentY = 14;
+
+  // Left: Circular MKM Logo with guaranteed base64 fallback
   try {
-    const logoSource = settings.logoUrl || MKM_LOGO_BASE64;
+    const logoSource =
+      settings.logoUrl && settings.logoUrl.startsWith('data:')
+        ? settings.logoUrl
+        : MKM_LOGO_BASE64;
     if (logoSource) {
-      doc.addImage(logoSource, 'PNG', margin, 6, 22, 22);
+      doc.addImage(logoSource, 'PNG', margin, currentY - 2, 16, 16);
     }
   } catch (e) {
-    console.error('Error rendering logo in PDF', e);
+    console.error('Error rendering logo in Invoice PDF', e);
   }
 
-  // Left Brand Info
-  const textLeft = margin + 26;
+  // Right: INVOICE Title & Metadata Table Dimensions
+  const rightTableWidth = 62;
+  const rightTableX = pageWidth - margin - rightTableWidth;
+
+  // Left: Brand Name & Address Block (Constrained to maxLeftWidth)
+  const textLeft = margin + 19;
+  const maxLeftWidth = rightTableX - textLeft - 5; // Guaranteed safety margin preventing any overlap with DATE/INVOICE #
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.text(settings.companyName.toUpperCase(), textLeft, 12);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(203, 213, 225); // #CBD5E1 Slate 300
-  const companyAddress =
-    settings.address ||
-    '13, 6, Vallalar St, Senthil Nagar, Loganathan Nagar, Padmanabha Nagar, Choolaimedu, Chennai, Tamil Nadu - 600094';
-  const splitAddress = doc.splitTextToSize(companyAddress, 95);
-  doc.text(splitAddress, textLeft, 17);
-
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184); // #94A3B8
-  doc.text(
-    `GSTIN: ${settings.gstNumber || '33ADVPU2567L3ZM'}  |  Phone: ${primaryPhone}  |  Email: ${settings.email || 'mkmpackersandmovers@gmail.com'}`,
-    textLeft,
-    28
+  doc.setFontSize(12);
+  doc.setTextColor(primaryTeal[0], primaryTeal[1], primaryTeal[2]);
+  const splitCompanyName = doc.splitTextToSize(
+    (settings.companyName || 'MKM PACKERS AND MOVERS').toUpperCase(),
+    maxLeftWidth
   );
+  doc.text(splitCompanyName, textLeft, currentY + 3);
 
-  // Right Invoice Title & Meta
-  const rightX = pageWidth - margin;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(245, 158, 11); // #F59E0B Gold / Amber
-  doc.text('TAX INVOICE', rightX, 12, { align: 'right' });
+  let addrY = currentY + 3 + splitCompanyName.length * 4.4;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(invoice.invoiceNumber, rightX, 18, { align: 'right' });
+  doc.setFontSize(7);
+  doc.setTextColor(30, 30, 30);
+  const rawAddr =
+    settings.address ||
+    'NEW NO 13 OLD NO 6, VALLALAR STREET,\nPADMANABA NAGAR, CHOOLAIMEDU, CHENNAI 600 094.';
+  const splitAddr = doc.splitTextToSize(rawAddr.toUpperCase(), maxLeftWidth);
+  doc.text(splitAddr, textLeft, addrY);
+  addrY += splitAddr.length * 3.2 + 0.8;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(203, 213, 225);
-  doc.text(`Date: ${formatDate(invoice.date)}`, rightX, 23, { align: 'right' });
-  doc.text(`Due Date: ${formatDate(invoice.dueDate || invoice.date)}`, rightX, 28, { align: 'right' });
+  doc.setFontSize(7.2);
+  doc.setTextColor(40, 40, 40);
 
-  // ==================== 2. TWO CLEAN SUB-CARDS ====================
-  let currentY = headerHeight + 7;
-  const cardWidth = (contentWidth - 6) / 2;
-  const cardHeight = 29;
+  const phoneLines = doc.splitTextToSize(`Phone: ${settings.phone || '98405 46766, 93423 06048.'}`, maxLeftWidth);
+  doc.text(phoneLines, textLeft, addrY);
+  addrY += phoneLines.length * 3.2;
 
-  // --- CARD 1: BILLED TO / ORIGIN ---
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, currentY, cardWidth, cardHeight, 2, 2, 'FD');
+  const webLines = doc.splitTextToSize(`Website: ${settings.website || 'www.mkmpackersandmovers.com'}`, maxLeftWidth);
+  doc.text(webLines, textLeft, addrY);
+  addrY += webLines.length * 3.2;
 
+  const mailLines = doc.splitTextToSize(`Mail: ${settings.email || 'mkmpackersandmovers@gmail.com'}`, maxLeftWidth);
+  doc.text(mailLines, textLeft, addrY);
+  addrY += mailLines.length * 3.2;
+
+  // Right: INVOICE Title
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('BILLED TO (CONSIGNOR):', margin + 3.5, currentY + 5.5);
+  doc.setFontSize(18);
+  doc.setTextColor(invoiceBlue[0], invoiceBlue[1], invoiceBlue[2]);
+  doc.text('INVOICE', pageWidth - margin, currentY + 3, { align: 'right' });
 
-  const custName = invoice.customerName || customer?.name || 'Customer Name';
-  const custMobile = invoice.customerPhone || customer?.phone || primaryPhone;
-  const fromAddr = invoice.moveFromAddress || 'West Mambalam, Chennai';
+  // Right Meta Table (DATE, INVOICE #, GST, PO NO:)
+  const metaStartY = currentY + 7;
+  const rowHeight = 5.2;
+  const metaLabelWidth = 24;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(doc.splitTextToSize(custName, cardWidth - 7), margin + 3.5, currentY + 10.5);
+  const metaData = [
+    { label: 'DATE', val: formatInvoiceDate(invoice.date) },
+    { label: 'INVOICE #', val: invoice.invoiceNumber },
+    { label: 'GST', val: invoice.gstType || invoice.customerGst || 'NILL' },
+    { label: 'PO NO:', val: invoice.poNumber || '' },
+  ];
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Phone: ${custMobile}`, margin + 3.5, currentY + 15.5);
-  const splitFrom = doc.splitTextToSize(`Pickup: ${fromAddr}`, cardWidth - 7);
-  doc.text(splitFrom.slice(0, 2), margin + 3.5, currentY + 20);
+  metaData.forEach((row, idx) => {
+    const y = metaStartY + idx * rowHeight;
+    // Row background
+    if (idx % 2 === 1) {
+      doc.setFillColor(lightRowBlue[0], lightRowBlue[1], lightRowBlue[2]);
+    } else {
+      doc.setFillColor(255, 255, 255);
+    }
+    doc.rect(rightTableX, y, rightTableWidth, rowHeight, 'F');
+    doc.setDrawColor(200, 215, 230);
+    doc.setLineWidth(0.2);
+    doc.rect(rightTableX, y, rightTableWidth, rowHeight, 'D');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  if (invoice.status === 'Paid') {
-    doc.setTextColor(16, 185, 129);
-    doc.text('Status: PAID IN FULL', margin + 3.5, currentY + 26.5);
-  } else if (invoice.status === 'Partially Paid') {
-    doc.setTextColor(245, 158, 11);
-    doc.text(`Status: PARTIALLY PAID (Due: Rs. ${invoice.balanceDue.toLocaleString('en-IN')})`, margin + 3.5, currentY + 26.5);
-  } else {
-    doc.setTextColor(239, 68, 68);
-    doc.text('Status: UNPAID / DUE', margin + 3.5, currentY + 26.5);
-  }
+    // Divider between label and val
+    doc.line(rightTableX + metaLabelWidth, y, rightTableX + metaLabelWidth, y + rowHeight);
 
-  // --- CARD 2: MOVE DESTINATION & DISPATCH ---
-  const card2X = margin + cardWidth + 6;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(card2X, currentY, cardWidth, cardHeight, 2, 2, 'FD');
+    // Label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(40, 40, 40);
+    doc.text(row.label, rightTableX + 2, y + 3.8);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('DESTINATION & DISPATCH DETAILS:', card2X + 3.5, currentY + 5.5);
+    // Value
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(row.val, rightTableX + metaLabelWidth + 3, y + 3.8);
+  });
 
-  const toAddr = invoice.moveToAddress || 'Senthamizh Nagar, Sivagangai';
-  const vehicle = invoice.vehicleNo || '14ft Closed Container';
+  // ==================== 2. BILL TO SECTION ====================
+  const metaTableBottom = metaStartY + metaData.length * rowHeight;
+  currentY = Math.max(addrY + 6, metaTableBottom + 6);
+
+  // Solid Blue Bar "BILL TO"
+  const billToBarWidth = 72;
+  doc.setFillColor(primaryTeal[0], primaryTeal[1], primaryTeal[2]);
+  doc.rect(margin, currentY, billToBarWidth, 5.5, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  const splitTo = doc.splitTextToSize(`Drop: ${toAddr}`, cardWidth - 7);
-  doc.text(splitTo.slice(0, 2), card2X + 3.5, currentY + 10.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('BILL TO', margin + 3, currentY + 4);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Vehicle No: ${vehicle}`, card2X + 3.5, currentY + 19);
-  doc.text(`Moving Date: ${formatDate(invoice.dueDate || invoice.date)}`, card2X + 3.5, currentY + 23);
-  doc.text(`Support Hotline: ${primaryPhone}`, card2X + 3.5, currentY + 27);
+  currentY += 8.5;
 
-  // ==================== 3. LINE ITEMS TABLE ====================
-  currentY += cardHeight + 6;
+  // Bill To Content (Customer email omitted)
+  const billToText =
+    invoice.billToDetails ||
+    [
+      invoice.customerName || customer?.name || 'The Executive Engineer',
+      'AOBM',
+      invoice.moveToAddress || customer?.address || 'Chennai Metropolitan Water Supply\nChennai 600028.',
+    ].join('\n');
 
-  const tableBody = invoice.items.map((item, idx) => [
-    idx + 1,
-    {
-      content: `${item.service}${item.description ? '\n' + item.description : ''}`,
-      styles: { halign: 'left' as const },
-    },
-    `Rs. ${item.unitPrice.toLocaleString('en-IN')}`,
-    item.qty,
-    `Rs. ${item.amount.toLocaleString('en-IN')}`,
-  ]);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(20, 20, 20);
 
-  if (tableBody.length === 0) {
-    tableBody.push([
-      1,
-      {
-        content: 'Household Transportation & Freight Charges\nDoor-to-door shifting service',
-        styles: { halign: 'left' as const },
-      },
-      `Rs. ${invoice.grandTotal.toLocaleString('en-IN')}`,
-      1,
-      `Rs. ${invoice.grandTotal.toLocaleString('en-IN')}`,
+  const splitBillTo = doc.splitTextToSize(billToText, 100);
+  doc.text(splitBillTo, margin + 10, currentY);
+
+  currentY += splitBillTo.length * 4.5 + 4;
+
+  // ==================== 3. MAIN PARTICULARS / DESCRIPTION TABLE ====================
+  const tableStartY = currentY;
+
+  // Build items array or single consolidated description
+  const tableRows: any[] = [];
+  if (invoice.items && invoice.items.length > 0) {
+    invoice.items.forEach((item) => {
+      const desc = `${item.service}${item.description ? '\n' + item.description : ''}`;
+      tableRows.push([desc, '', formatRupeeDoc(item.amount)]);
+    });
+  } else {
+    tableRows.push([
+      "Transportation charges for Office Furniture's\nAmma Maaligai Chennai Central to CMWSSB Head Office Chintadripet\nThe rate inclusive of packing material, loading and un-loading charges",
+      '',
+      formatRupeeDoc(invoice.grandTotal || 14000),
     ]);
   }
 
+  // Minimum visual rows to create the aesthetic ruled lines of the printed document
+  while (tableRows.length < 5) {
+    tableRows.push(['', '', '']);
+  }
+
   autoTable(doc, {
-    startY: currentY,
+    startY: tableStartY,
     margin: { left: margin, right: margin },
-    head: [['#', 'Service Description', 'Rate', 'Qty', 'Amount']],
-    body: tableBody,
-    theme: 'plain',
+    head: [['DESCRIPTION', 'TAXED', 'AMOUNT']],
+    body: tableRows,
+    theme: 'grid',
     headStyles: {
-      fillColor: [15, 23, 42],
+      fillColor: [primaryTeal[0], primaryTeal[1], primaryTeal[2]],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: 3,
+      fontSize: 8.5,
+      halign: 'left',
+      cellPadding: 2.5,
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 28, halign: 'right' },
-      3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 120, halign: 'left' },
+      1: { cellWidth: 20, halign: 'center' },
+      2: { cellWidth: 42, halign: 'right' },
     },
     styles: {
-      fontSize: 7.5,
+      fontSize: 8,
       cellPadding: 3,
-      textColor: [30, 41, 59],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.2,
+      textColor: [20, 20, 20],
+      lineColor: [100, 150, 190],
+      lineWidth: 0.3,
+      minCellHeight: 8,
+    },
+    alternateRowStyles: {
+      fillColor: [248, 251, 255],
     },
   });
 
   const finalTableY = (doc as any).lastAutoTable.finalY;
-  currentY = finalTableY + 4;
+  currentY = finalTableY;
 
-  // ==================== 4. FINANCIAL TOTALS SUMMARY ====================
-  const totalsWidth = 75;
-  const totalsX = pageWidth - margin - totalsWidth;
+  // ==================== 4. TOTALS SUMMARY BLOCK ====================
+  const summaryWidth = 82;
+  const summaryX = pageWidth - margin - summaryWidth;
+  const summaryRowHeight = 5.2;
+  const labelColWidth = 40;
 
-  // Subtotal
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Subtotal:', totalsX, currentY + 3);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Rs. ${invoice.subtotal.toLocaleString('en-IN')}`, pageWidth - margin, currentY + 3, {
-    align: 'right',
+  const isGstApplicable = Boolean(invoice.tax && invoice.tax > 0);
+  const centralTaxVal = isGstApplicable ? formatRupeeDoc(invoice.tax / 2) : 'Nill';
+  const stateTaxVal = isGstApplicable ? formatRupeeDoc(invoice.tax / 2) : '';
+  const otherVal = invoice.otherCharges ? formatRupeeDoc(invoice.otherCharges) : 'Nill';
+
+  const summaryData = [
+    { label: 'Subtotal', val: formatRupeeDoc(invoice.subtotal || invoice.grandTotal), isBold: true },
+    { label: 'Taxable', val: '', isBold: false },
+    { label: 'Central Tax 9%', val: centralTaxVal, isBold: false },
+    { label: 'State Tax 9%', val: stateTaxVal, isBold: false },
+    { label: 'Other', val: otherVal, isBold: false },
+    { label: 'TOTAL', val: formatRupeeDoc(invoice.grandTotal), isBold: true, isTotal: true },
+  ];
+
+  summaryData.forEach((row, idx) => {
+    const y = currentY + idx * summaryRowHeight;
+
+    if (row.isTotal) {
+      // Highlighted Total Bar
+      doc.setFillColor(highlightBlue[0], highlightBlue[1], highlightBlue[2]);
+      doc.rect(summaryX, y, summaryWidth, summaryRowHeight, 'F');
+      doc.setDrawColor(primaryTeal[0], primaryTeal[1], primaryTeal[2]);
+      doc.setLineWidth(0.4);
+      doc.rect(summaryX, y, summaryWidth, summaryRowHeight, 'D');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(20, 20, 20);
+      doc.text(row.label, summaryX + labelColWidth - 2, y + 3.8, { align: 'right' });
+      doc.text(row.val, pageWidth - margin - 3, y + 3.8, { align: 'right' });
+    } else {
+      doc.setDrawColor(200, 215, 230);
+      doc.setLineWidth(0.2);
+
+      // Light border for values box
+      doc.rect(summaryX + labelColWidth, y, summaryWidth - labelColWidth, summaryRowHeight, 'D');
+
+      doc.setFont('helvetica', row.isBold ? 'bold' : 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(30, 30, 30);
+      doc.text(row.label, summaryX + labelColWidth - 3, y + 3.8, { align: 'right' });
+
+      if (row.val) {
+        doc.text(row.val, summaryX + labelColWidth + 3, y + 3.8);
+      }
+    }
   });
 
-  let totalsOffset = 7;
+  currentY += summaryData.length * summaryRowHeight + 14;
 
-  // Discount
-  if (invoice.discount && invoice.discount > 0) {
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('Discount:', totalsX, currentY + totalsOffset);
-    doc.setTextColor(239, 68, 68);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`- Rs. ${invoice.discount.toLocaleString('en-IN')}`, pageWidth - margin, currentY + totalsOffset, {
-      align: 'right',
-    });
-    totalsOffset += 4;
-  }
-
-  // Tax
-  if (invoice.tax && invoice.tax > 0) {
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text(`GST Tax (${settings.taxRate || 18}%):`, totalsX, currentY + totalsOffset);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Rs. ${invoice.tax.toLocaleString('en-IN')}`, pageWidth - margin, currentY + totalsOffset, {
-      align: 'right',
-    });
-    totalsOffset += 4;
-  }
-
-  // Divider Line
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.line(totalsX, currentY + totalsOffset, pageWidth - margin, currentY + totalsOffset);
-  totalsOffset += 4;
-
-  // Grand Total
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Grand Total:', totalsX, currentY + totalsOffset);
-  doc.text(`Rs. ${invoice.grandTotal.toLocaleString('en-IN')}`, pageWidth - margin, currentY + totalsOffset, {
-    align: 'right',
-  });
-  totalsOffset += 4.5;
-
-  // Amount Paid
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(16, 185, 129);
-  doc.text('Amount Paid:', totalsX, currentY + totalsOffset);
-  doc.text(`Rs. ${invoice.amountPaid.toLocaleString('en-IN')}`, pageWidth - margin, currentY + totalsOffset, {
-    align: 'right',
-  });
-  totalsOffset += 4.5;
-
-  // Balance Due
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  if (invoice.balanceDue > 0) {
-    doc.setTextColor(239, 68, 68);
-    doc.text('Balance Due:', totalsX, currentY + totalsOffset);
-    doc.text(`Rs. ${invoice.balanceDue.toLocaleString('en-IN')}`, pageWidth - margin, currentY + totalsOffset, {
-      align: 'right',
-    });
-  } else {
-    doc.setTextColor(16, 185, 129);
-    doc.text('Balance Due:', totalsX, currentY + totalsOffset);
-    doc.text('Rs. 0', pageWidth - margin, currentY + totalsOffset, { align: 'right' });
-  }
-
-  // Left Rupees In Words
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('RUPEES IN WORDS:', margin, currentY + 3);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  const words = numberToWordsIndian(invoice.grandTotal);
-  doc.text(doc.splitTextToSize(words, totalsX - margin - 4), margin, currentY + 8);
-
-  // ==================== 5. TERMS & SIGNATURE BLOCK ====================
-  currentY += Math.max(totalsOffset + 6, 28);
-
-  // Left Terms
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('TERMS & NOTES:', margin, currentY);
-
+  // ==================== 5. SIGN-OFF BLOCK ====================
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  const noteText =
-    invoice.notes ||
-    '1. 100% safe door-to-door shifting.\n2. Please inspect packages upon receipt.\n3. Goods transit handled under standard logistics terms.';
-  const splitNotes = doc.splitTextToSize(noteText, 95);
-  doc.text(splitNotes, margin, currentY + 4);
-
-  // Right Signature
-  const sigX = pageWidth - margin - 50;
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.line(sigX, currentY + 12, pageWidth - margin, currentY + 12);
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 30, 30);
+  doc.text('For ', pageWidth - margin - 65, currentY);
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`For ${settings.companyName}`, sigX + 25, currentY + 15.5, { align: 'center' });
+  doc.setTextColor(primaryTeal[0], primaryTeal[1], primaryTeal[2]);
+  doc.text((settings.companyName || 'MKM PACKERS AND MOVERS').toUpperCase(), pageWidth - margin - 57, currentY);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Authorized Signatory', sigX + 25, currentY + 19, { align: 'center' });
-
-  // File download standard: [CustomerName]-[InvoiceNumber].pdf
-  const sanitizedCustomer = (custName || 'Customer').replace(/[^a-zA-Z0-9_-]/g, '_');
+  // Save PDF
+  const sanitizedCustomer = (invoice.customerName || customer?.name || 'Customer').replace(/[^a-zA-Z0-9_-]/g, '_');
   const safeInvoiceNum = invoice.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, '_');
   doc.save(`${sanitizedCustomer}-${safeInvoiceNum}.pdf`);
 };
 
 /**
- * GENERATE RELOCATION QUOTATION / ESTIMATE PDF
+ * GENERATE EXACT QUOTATION PDF MATCHING PHYSICAL PAPER FORMAT (IMAGE 2)
  */
 export const generateQuotationPDF = (
   quotation: Quotation,
@@ -369,233 +351,218 @@ export const generateQuotationPDF = (
     format: 'a4',
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 12;
-  const contentWidth = pageWidth - margin * 2;
-  const primaryPhone = '09840546766';
+  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const margin = 16;
+  const contentWidth = pageWidth - margin * 2; // 178mm
 
-  // Dark Header Banner
-  const headerHeight = 36;
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pageWidth, headerHeight, 'F');
+  let currentY = 16;
 
-  // MKM Circular Logo
+  // ==================== 1. HEADER SECTION ====================
+  // Left: Circular Logo + Brand Name with guaranteed base64 fallback
   try {
-    const logoSource = settings.logoUrl || MKM_LOGO_BASE64;
+    const logoSource =
+      settings.logoUrl && settings.logoUrl.startsWith('data:')
+        ? settings.logoUrl
+        : MKM_LOGO_BASE64;
     if (logoSource) {
-      doc.addImage(logoSource, 'PNG', margin, 6, 22, 22);
+      doc.addImage(logoSource, 'PNG', margin, currentY - 2, 16, 16);
     }
   } catch (e) {
     console.error('Error rendering logo in Quotation PDF', e);
   }
 
-  // Left Brand
-  const textLeft = margin + 26;
+  // Brand Name
+  const brandX = margin + 18;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.setTextColor(255, 255, 255);
-  doc.text(settings.companyName.toUpperCase(), textLeft, 12);
+  doc.setTextColor(200, 30, 30); // Red "MKM"
+  doc.text('MKM', brandX, currentY + 4);
 
+  doc.setTextColor(40, 40, 40); // Dark "PACKERS AND MOVERS"
+  doc.text(' PACKERS AND MOVERS', brandX + 13, currentY + 4);
+
+  // Right Address
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(203, 213, 225);
-  const companyAddress =
+  doc.setTextColor(50, 50, 50);
+  const quoteAddress =
     settings.address ||
-    '13, 6, Vallalar St, Senthil Nagar, Loganathan Nagar, Padmanabha Nagar, Choolaimedu, Chennai, Tamil Nadu - 600094';
-  const splitAddress = doc.splitTextToSize(companyAddress, 95);
-  doc.text(splitAddress, textLeft, 17);
+    'NO. 13/6, VALLALAR STREET, PADMANABA NAGAR,\nCHOOLAIMEDU, CHENNAI- 600 094.';
+  const splitQuoteAddr = doc.splitTextToSize(quoteAddress, 75);
+  doc.text(splitQuoteAddr, pageWidth - margin, currentY + 1, { align: 'right' });
 
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(
-    `GSTIN: ${settings.gstNumber || '33ADVPU2567L3ZM'}  |  Phone: ${primaryPhone}  |  Email: ${settings.email || 'mkmpackersandmovers@gmail.com'}`,
-    textLeft,
-    28
-  );
+  currentY += 18;
 
-  // Right Title & Meta
-  const rightX = pageWidth - margin;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(245, 158, 11);
-  doc.text('QUOTATION & ESTIMATE', rightX, 12, { align: 'right' });
+  // ==================== 2. RECIPIENT & DATE ====================
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(20, 20, 20);
+  doc.text('To', margin, currentY);
+  currentY += 4.5;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(quotation.quotationNumber, rightX, 18, { align: 'right' });
+  const toText =
+    quotation.toDetails ||
+    [
+      quotation.customerName || customer?.name || 'The Executive Engineer',
+      'AOBM',
+      quotation.dropAddress || customer?.address || 'Chennai Metropolitan Water Supply\nChennai 600028.',
+    ].join('\n');
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(203, 213, 225);
-  doc.text(`Date: ${formatDate(quotation.date)}`, rightX, 23, { align: 'right' });
-  doc.text(`Valid Until: ${formatDate(quotation.validUntil)}`, rightX, 28, { align: 'right' });
+  doc.setFontSize(8.5);
+  const splitTo = doc.splitTextToSize(toText, 100);
+  doc.text(splitTo, margin, currentY);
 
-  // Two Cards: Client & Route
-  let currentY = headerHeight + 7;
-  const cardWidth = (contentWidth - 6) / 2;
-  const cardHeight = 29;
-
-  // Card 1: Client & Pickup
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-
-  const custName = customer?.name || 'Customer Name';
-  const custMobile = customer?.phone || primaryPhone;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('CLIENT & ORIGIN LOCATION:', margin + 3.5, currentY + 5.5);
-
+  // Right DATE
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(doc.splitTextToSize(custName, cardWidth - 7), margin + 3.5, currentY + 10.5);
+  doc.setTextColor(30, 30, 30);
+  doc.text(`DATE: ${formatQuotationDate(quotation.date)}`, pageWidth - margin, currentY, { align: 'right' });
+
+  currentY += Math.max(splitTo.length * 4.5 + 4, 16);
+
+  // ==================== 3. UNDERLINED SUBJECT LINE ====================
+  const subjectText =
+    quotation.subject ||
+    `Sub: Shifting of OFFICE FURNITURE'S FROM ${
+      quotation.pickupAddress || 'AMMA MALIGAI CHENNAI CENTRAL'
+    } TO ${quotation.dropAddress || 'CMWSSB HEAD OFFICE, CHINTADRIPET, Chennai.'}`;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Phone: ${custMobile}`, margin + 3.5, currentY + 15.5);
-  const splitFrom = doc.splitTextToSize(`Origin: ${quotation.pickupAddress}`, cardWidth - 7);
-  doc.text(splitFrom.slice(0, 2), margin + 3.5, currentY + 20);
-  doc.text(`Property: ${quotation.propertyType} • ${quotation.floor || 'Ground'}`, margin + 3.5, currentY + 26.5);
-
-  // Card 2: Destination & Schedule
-  const card2X = margin + cardWidth + 6;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(card2X, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('DESTINATION & SCHEDULE:', card2X + 3.5, currentY + 5.5);
-
-  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  const splitTo = doc.splitTextToSize(`Destination: ${quotation.dropAddress}`, cardWidth - 7);
-  doc.text(splitTo.slice(0, 2), card2X + 3.5, currentY + 10.5);
+  doc.setTextColor(20, 20, 20);
+
+  const splitSubject = doc.splitTextToSize(subjectText, contentWidth);
+  doc.text(splitSubject, margin, currentY);
+
+  // Underline Subject
+  const subjHeight = splitSubject.length * 4.2;
+  doc.setDrawColor(50, 50, 50);
+  doc.setLineWidth(0.2);
+  doc.line(margin, currentY + subjHeight - 2.5, margin + contentWidth, currentY + subjHeight - 2.5);
+
+  currentY += subjHeight + 4;
+
+  // ==================== 4. INTRODUCTORY BODY PARAGRAPH ====================
+  const introText =
+    quotation.introParagraph ||
+    'Kindly refer to our discussion regarding the above subject. We are giving below here with our quotation and other terms and conditions. Hope you will find our quotation competitive and we assure for the best service. The scope of work would be packing and moving goods';
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Moving Date: ${formatDate(quotation.movingDate)}`, card2X + 3.5, currentY + 19);
-  doc.text(`Vehicle: ${quotation.vehicleType || '14ft Container'}`, card2X + 3.5, currentY + 23);
-  doc.text(`Support Hotline: ${primaryPhone}`, card2X + 3.5, currentY + 27);
+  doc.setFontSize(8.5);
+  doc.setTextColor(30, 30, 30);
+  const splitIntro = doc.splitTextToSize(introText, contentWidth);
+  doc.text(splitIntro, margin, currentY);
 
-  // Table
-  currentY += cardHeight + 6;
+  currentY += splitIntro.length * 4.4 + 6;
 
-  const tableBody = quotation.items.map((item, idx) => [
-    idx + 1,
-    {
-      content: `${item.service}${item.description ? '\n' + item.description : ''}`,
-      styles: { halign: 'left' as const },
-    },
-    `Rs. ${item.unitPrice.toLocaleString('en-IN')}`,
-    item.qty,
-    `Rs. ${item.amount.toLocaleString('en-IN')}`,
-  ]);
+  // ==================== 5. PARTICULARS TABLE ====================
+  const quoteRows: any[] = [];
+  if (quotation.items && quotation.items.length > 0) {
+    quotation.items.forEach((it, idx) => {
+      const partic = `${it.service.toUpperCase()}${it.description ? ', ' + it.description.toUpperCase() : ''}`;
+      quoteRows.push([String(idx + 1), partic, formatRupeeDoc(it.amount || it.unitPrice)]);
+    });
+  } else {
+    quoteRows.push([
+      '1',
+      'PACKING CHARGES, PACKING MATERIALS, TRANSPORT, LOADING CHARGES AND UNLOADING CHARGES.',
+      formatRupeeDoc(quotation.grandTotal || 14000),
+    ]);
+  }
 
   autoTable(doc, {
     startY: currentY,
     margin: { left: margin, right: margin },
-    head: [['#', 'Estimated Service Description', 'Rate', 'Qty', 'Amount']],
-    body: tableBody,
-    theme: 'plain',
+    head: [['s.\nno', 'PARTICULARS', 'RATE']],
+    body: quoteRows,
+    theme: 'grid',
     headStyles: {
-      fillColor: [15, 23, 42],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: 3,
+      fillColor: [255, 255, 255],
+      textColor: [20, 20, 20],
+      fontStyle: 'normal',
+      fontSize: 8.5,
+      cellPadding: 2.5,
+      lineColor: [40, 40, 40],
+      lineWidth: 0.3,
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 28, halign: 'right' },
-      3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 14, halign: 'center' },
+      1: { cellWidth: 124, halign: 'left' },
+      2: { cellWidth: 40, halign: 'center', fontStyle: 'bold' },
     },
     styles: {
-      fontSize: 7.5,
-      cellPadding: 3,
-      textColor: [30, 41, 59],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.2,
+      fontSize: 8,
+      cellPadding: 3.5,
+      textColor: [20, 20, 20],
+      lineColor: [40, 40, 40],
+      lineWidth: 0.3,
     },
   });
 
-  const finalTableY = (doc as any).lastAutoTable.finalY;
-  currentY = finalTableY + 4;
+  const finalQuoteTableY = (doc as any).lastAutoTable.finalY;
+  currentY = finalQuoteTableY + 8;
 
-  // Totals
-  const totalsWidth = 75;
-  const totalsX = pageWidth - margin - totalsWidth;
+  // ==================== 6. TERMS & CONDITIONS ====================
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(20, 20, 20);
+  doc.text('TERMS & CONDITIONS', margin, currentY);
+
+  // Underline heading
+  doc.setLineWidth(0.2);
+  doc.line(margin, currentY + 1, margin + 42, currentY + 1);
+
+  currentY += 5.5;
+
+  const defaultTerms = [
+    'Payment: 100% to be paid at the time of loading.',
+    'This quote is valid for 14 days from this day',
+    'Rate will be varied if packing material or load exceed at the time of packing and movement.',
+    'Insurance 2% of declared value.',
+    'Maximum load 1 tons to 1.5 tons only will be loaded',
+  ];
+
+  const termsToPrint = quotation.termsList && quotation.termsList.length > 0 ? quotation.termsList : defaultTerms;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Subtotal:', totalsX, currentY + 3);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Rs. ${quotation.subtotal.toLocaleString('en-IN')}`, pageWidth - margin, currentY + 3, {
-    align: 'right',
+  doc.setTextColor(40, 40, 40);
+
+  termsToPrint.forEach((term) => {
+    doc.text('➤', margin + 4, currentY);
+    const splitTerm = doc.splitTextToSize(term, contentWidth - 14);
+    doc.text(splitTerm, margin + 10, currentY);
+    currentY += splitTerm.length * 4.2 + 1;
   });
 
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.line(totalsX, currentY + 7, pageWidth - margin, currentY + 7);
+  currentY += 10;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Estimated Total:', totalsX, currentY + 12);
-  doc.text(`Rs. ${quotation.grandTotal.toLocaleString('en-IN')}`, pageWidth - margin, currentY + 12, {
-    align: 'right',
-  });
-
-  // Words
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('RUPEES IN WORDS:', margin, currentY + 3);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  const words = numberToWordsIndian(quotation.grandTotal);
-  doc.text(doc.splitTextToSize(words, totalsX - margin - 4), margin, currentY + 8);
-
-  // Terms & Signature
-  currentY += 24;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('NOTES & VALIDITY:', margin, currentY);
-
+  // ==================== 7. SIGN-OFF BLOCK ====================
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  const qNotes = quotation.notes || '1. Quotation valid for 15 days.\n2. Includes vehicle, packing materials, and handling crew.';
-  doc.text(doc.splitTextToSize(qNotes, 95), margin, currentY + 4);
+  doc.setFontSize(9);
+  doc.setTextColor(20, 20, 20);
+  doc.text('For MKM PACKERS AND MOVERS', margin, currentY);
+  currentY += 12;
+  doc.text('Authorized signature', margin, currentY);
 
-  const sigX = pageWidth - margin - 50;
-  doc.line(sigX, currentY + 10, pageWidth - margin, currentY + 10);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`For ${settings.companyName}`, sigX + 25, currentY + 13.5, { align: 'center' });
+  // ==================== 8. FOOTER ====================
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 30, 30);
+  const footerText = `EMAIL: ${settings.email || 'mkmpackersandmovers@gmail.com'}, CONACT: ${
+    settings.phone || '9840546766, 9342306048.'
+  }`;
+  doc.text(footerText, pageWidth / 2, 282, { align: 'center' });
 
-  const sanitizedCustomer = (custName || 'Customer').replace(/[^a-zA-Z0-9_-]/g, '_');
+  // Save PDF
+  const sanitizedCustomer = (quotation.customerName || customer?.name || 'Customer').replace(/[^a-zA-Z0-9_-]/g, '_');
   const safeQuoteNum = quotation.quotationNumber.replace(/[^a-zA-Z0-9_-]/g, '_');
   doc.save(`${sanitizedCustomer}-${safeQuoteNum}.pdf`);
 };
 
 /**
- * GENERATE LORRY RECEIPT (LR) PDF FROM BOOKING
+ * GENERATE LORRY RECEIPT (LR) PDF
  */
 export const generateLRPDF = (
   booking: Booking,
@@ -607,7 +574,7 @@ export const generateLRPDF = (
     invoiceNumber: `LR-${booking.bookingNumber}`,
     customerId: booking.customerId,
     customerName: customer?.name,
-    customerPhone: customer?.phone || '09840546766',
+    customerPhone: customer?.phone || '98405 46766',
     moveFromAddress: booking.pickupLocation,
     moveToAddress: booking.dropLocation,
     vehicleNo: booking.vehicle,
@@ -623,15 +590,6 @@ export const generateLRPDF = (
         discount: 0,
         amount: booking.totalAmount,
       },
-      {
-        id: '2',
-        service: 'Handling, Loading & Labour Charges',
-        description: `Assigned Team: ${booking.driver} + ${booking.workers} Crew Helpers`,
-        qty: 1,
-        unitPrice: 0,
-        discount: 0,
-        amount: 0,
-      },
     ],
     subtotal: booking.totalAmount,
     tax: 0,
@@ -639,7 +597,7 @@ export const generateLRPDF = (
     grandTotal: booking.totalAmount,
     amountPaid: booking.advanceAmount,
     balanceDue: booking.balanceAmount,
-    status: booking.balanceAmount === 0 ? 'Paid' : 'Partially Paid',
+    status: 'Paid',
     notes: 'Commercial move dispatch order and lorry receipt note.',
     createdAt: booking.createdAt,
     updatedAt: booking.updatedAt || booking.createdAt,

@@ -1,207 +1,196 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  Truck,
+  BarChart3,
   Receipt,
-  CreditCard,
-  TrendingUp,
-  Settings,
-  Contact,
-  PieChart,
+  FileText,
+  Settings as SettingsIcon,
+  Database,
   Download,
   LogOut,
-  ShieldCheck,
+  X,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { useAppContext } from '../../store/AppContext';
 import { useAuth } from '../../store/AuthContext';
-
-interface NavGroup {
-  group: string;
-  items: {
-    name: string;
-    href: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: string;
-    badgeColor?: string;
-  }[];
-}
+import { isAppInstalled } from '../../utils/pwa';
+import { MKM_LOGO_BASE64 } from '../../assets/logo';
 
 export const Sidebar: React.FC<{
   onCloseMobile?: () => void;
   onOpenPwaModal?: () => void;
-}> = ({ onCloseMobile, onOpenPwaModal }) => {
-  const { settings, leads, bookings, invoices } = useAppContext();
+  onOpenGuideModal?: () => void;
+}> = ({ onCloseMobile, onOpenPwaModal, onOpenGuideModal }) => {
+  const { settings, invoices, quotations } = useAppContext();
   const { user, isAuthEnabled, logout } = useAuth();
+  const [installed, setInstalled] = useState(false);
 
-  const activeLeadsCount = leads.filter((l) => l.status === 'New' || l.status === 'Follow-up').length;
-  const activeBookingsCount = bookings.filter(
-    (b) => b.status === 'Confirmed' || b.status === 'In Transit' || b.status === 'Packing' || b.status === 'Loading'
-  ).length;
-  const unpaidInvoicesCount = invoices.filter(
-    (i) => i.status === 'Unpaid' || i.status === 'Partially Paid' || i.status === 'Overdue'
-  ).length;
+  useEffect(() => {
+    setInstalled(isAppInstalled());
+    const onInst = () => setInstalled(true);
+    window.addEventListener('pwa-installed', onInst);
+    return () => window.removeEventListener('pwa-installed', onInst);
+  }, []);
 
-  const navigationGroups: NavGroup[] = [
+  const navItems = [
     {
-      group: 'OPERATIONS',
-      items: [
-        { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-        {
-          name: 'Leads & Enquiries',
-          href: '/leads',
-          icon: Contact,
-          badge: activeLeadsCount > 0 ? `${activeLeadsCount}` : undefined,
-          badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-        },
-        { name: 'Customers Directory', href: '/customers', icon: Users },
-        {
-          name: 'Move Orders',
-          href: '/bookings',
-          icon: Truck,
-          badge: activeBookingsCount > 0 ? `${activeBookingsCount}` : undefined,
-          badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
-        },
-      ],
+      name: 'Invoices',
+      href: '/invoices',
+      icon: Receipt,
+      badge: invoices.length > 0 ? `${invoices.length}` : undefined,
+      badgeColor: 'bg-[#F5EDE2] text-[#9E7B4F] border border-[#DFC9AE]',
     },
     {
-      group: 'FINANCE & BILLING',
-      items: [
-        {
-          name: 'Tax Invoices',
-          href: '/invoices',
-          icon: Receipt,
-          badge: unpaidInvoicesCount > 0 ? `${unpaidInvoicesCount}` : undefined,
-          badgeColor: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
-        },
-        { name: 'Quotations', href: '/quotations', icon: FileText },
-        { name: 'Payments Ledger', href: '/payments', icon: CreditCard },
-        { name: 'Operating Expenses', href: '/expenses', icon: TrendingUp },
-      ],
+      name: 'Quotations',
+      href: '/quotations',
+      icon: FileText,
+      badge: quotations.length > 0 ? `${quotations.length}` : undefined,
+      badgeColor: 'bg-slate-100 text-slate-600 border border-slate-200',
     },
     {
-      group: 'ANALYTICS & SYSTEM',
-      items: [
-        { name: 'Business Reports', href: '/reports', icon: PieChart },
-        { name: 'Company Settings', href: '/settings', icon: Settings },
-      ],
+      name: 'Overview',
+      href: '/overview',
+      icon: BarChart3,
+    },
+    {
+      name: 'Settings',
+      href: '/settings',
+      icon: SettingsIcon,
     },
   ];
 
   return (
-    <aside className="flex flex-col h-full bg-[#0B0F19] text-slate-300 border-r border-slate-800/80 w-64 select-none">
+    <aside className="flex flex-col h-full bg-white text-slate-700 border-r border-[#EAE5DC] w-64 select-none shadow-[2px_0_8px_rgba(0,0,0,0.02)]">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-4.5 py-4.5 border-b border-slate-800/80 shrink-0 bg-[#070A12]">
-        <img
-          src="/logo.png"
-          alt="MKM Packers and Movers"
-          className="w-9 h-9 rounded-full object-cover ring-1 ring-amber-400/80 bg-white shrink-0 shadow-sm"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-xs font-bold tracking-wider text-white uppercase truncate">
+      <div className="flex items-center justify-between px-5 py-5 border-b border-[#F0EBE1] shrink-0 bg-white">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-[#E8DFD1] p-1 shadow-xs flex items-center justify-center shrink-0">
+            <img
+              src={MKM_LOGO_BASE64}
+              alt="MKM Packers"
+              className="w-full h-full rounded-xl object-contain bg-white"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[14px] font-extrabold tracking-tight text-[#1A1D20] uppercase truncate">
               MKM PACKERS
             </h1>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Online" />
+            <p className="text-[9px] font-bold text-[#A6937C] tracking-widest uppercase truncate mt-0.5">
+              ENTERPRISE SUITE
+            </p>
           </div>
-          <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase truncate">
-            Enterprise Logistics
-          </p>
         </div>
+
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+            aria-label="Close menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {navigationGroups.map((group) => (
-          <div key={group.group} className="space-y-1">
-            <div className="px-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
-              {group.group}
-            </div>
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  onClick={onCloseMobile}
-                  className={({ isActive }) =>
-                    cn(
-                      'group relative flex items-center justify-between px-3 py-2 text-xs rounded-xl font-medium transition-all duration-150',
-                      isActive
-                        ? 'bg-slate-800/90 text-white font-semibold shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {/* Active Left Indicator Bar */}
-                      {isActive && (
-                        <div className="absolute left-0 top-2 bottom-2 w-1 bg-amber-400 rounded-r-full" />
-                      )}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon
-                          className={cn(
-                            'w-4 h-4 shrink-0 transition-colors',
-                            isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-300'
-                          )}
-                        />
-                        <span className="truncate">{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span
-                          className={cn(
-                            'px-1.5 py-0.5 text-[10px] font-bold rounded-md leading-none shadow-2xs',
-                            item.badgeColor || 'bg-slate-800 text-slate-300'
-                          )}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </>
+      <div className="flex-1 overflow-y-auto px-3.5 py-5 space-y-1.5">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              onClick={onCloseMobile}
+              className={({ isActive }) =>
+                cn(
+                  'group relative flex items-center justify-between px-3.5 py-3 text-[13px] rounded-xl font-medium transition-all duration-150',
+                  isActive
+                    ? 'bg-[#F5EDE2]/85 border border-[#DFC9AE]/85 text-[#1A1D20] font-bold shadow-2xs'
+                    : 'text-[#6A7888] hover:text-[#1A1D20] hover:bg-[#FAF8F5]'
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {/* Active Left Indicator Bar */}
+                  {isActive && (
+                    <div className="absolute left-0 top-2 bottom-2 w-1.5 bg-[#9E7B4F] rounded-r-full shadow-2xs" />
                   )}
-                </NavLink>
-              );
-            })}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon
+                      className={cn(
+                        'w-4.5 h-4.5 shrink-0 transition-colors',
+                        isActive ? 'text-[#9E7B4F]' : 'text-[#8C9CAE] group-hover:text-[#506070]'
+                      )}
+                    />
+                    <span className="truncate">{item.name}</span>
+                  </div>
+
+                  {item.badge && (
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 text-[10px] font-bold rounded-md leading-none shadow-2xs',
+                        item.badgeColor
+                      )}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
+        })}
+
+        {/* Direct Install App Button in Sidebar */}
+        {!installed && onOpenPwaModal && (
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={onOpenPwaModal}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F5EDE2] border border-[#DFC9AE] text-[#9E7B4F] font-extrabold text-xs transition-all cursor-pointer shadow-2xs group"
+            >
+              <div className="flex items-center gap-2.5">
+                <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                <span>Install MKM App</span>
+              </div>
+              <span className="text-[10px] bg-[#9E7B4F] text-white px-1.5 py-0.5 rounded-md font-bold">
+                1-Click
+              </span>
+            </button>
           </div>
-        ))}
+        )}
       </div>
 
-      {/* Bottom Profile & Actions */}
-      <div className="p-3 border-t border-slate-800/80 shrink-0 bg-[#070A12] space-y-2">
-        {onOpenPwaModal && (
-          <button
-            type="button"
-            onClick={onOpenPwaModal}
-            className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900 hover:bg-slate-800/90 border border-slate-800 text-[11px] text-slate-300 hover:text-white transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-semibold">Install Desktop App</span>
-            </div>
-            <span className="text-[10px] font-bold text-amber-400 uppercase">PWA</span>
-          </button>
-        )}
+      {/* Bottom Profile & Sync Card */}
+      <div className="p-4 border-t border-[#F0EBE1] shrink-0 bg-white space-y-3">
+        {/* Offline DB / Cloud Synced Pill */}
+        <div className="bg-[#FAF8F5] border border-[#EAE5DC] rounded-xl px-3 py-2 text-[11px] font-semibold text-[#718292] flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-1.5">
+            <Database className="w-3.5 h-3.5 text-[#9E7B4F]" />
+            <span>Cloud DB</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            <span className="text-[#10B981] font-bold text-[10px]">Synced</span>
+          </div>
+        </div>
 
-        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 text-amber-400 font-bold text-[10px] flex items-center justify-center shrink-0">
-                HQ
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-slate-200 truncate">
-                  {user?.email || 'MKM Dispatch'}
-                </p>
-                <p className="text-[10px] text-slate-400 font-mono truncate">{settings.phone || '09840546766'}</p>
-              </div>
+        {/* User Account Row */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-[#9E7B4F] text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs ring-2 ring-[#FAF6F0]">
+              {user?.email ? user.email.slice(0, 2).toUpperCase() : 'AD'}
             </div>
-            <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.5 rounded shrink-0">
-              Live
-            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-[#1A1D20] truncate">
+                Administrator
+              </p>
+              <p className="text-[10px] text-[#718292] font-mono truncate">
+                {user?.email || 'admin@mkmpackers.com'}
+              </p>
+            </div>
           </div>
 
           {isAuthEnabled && (
@@ -212,13 +201,19 @@ export const Sidebar: React.FC<{
                   await logout();
                 }
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-slate-900 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-900/60 text-slate-400 hover:text-rose-300 text-[11px] font-medium rounded-lg transition-all cursor-pointer"
+              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer shrink-0"
               title="Sign Out"
             >
-              <LogOut className="w-3 h-3" />
-              <span>Sign Out</span>
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
+
+        {/* System Copyright Monospace Footer */}
+        <div className="text-center pt-2 border-t border-[#F5F1E8]">
+          <p className="text-[9px] font-mono tracking-widest text-[#B5A998] uppercase">
+            © 2026 MKM Packers. Royal Suite.
+          </p>
         </div>
       </div>
     </aside>

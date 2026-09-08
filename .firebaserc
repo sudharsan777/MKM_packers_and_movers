@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "mkm-packers-movers"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

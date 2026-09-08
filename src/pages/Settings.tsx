@@ -2,58 +2,40 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Textarea } from '../components/ui/Input';
-import { Modal } from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { PwaInstallModal } from '../components/ui/PwaInstallModal';
 import { useAppContext } from '../store/AppContext';
-import { formatCurrency } from '../utils';
 import {
   Building2,
   FileText,
-  Percent,
-  ShieldCheck,
-  CheckCircle2,
-  CreditCard,
   Save,
   Download,
-  Settings as SettingsIcon,
-  Tag,
   FileCode,
   Smartphone,
-  Monitor,
-  Trash2,
-  Plus,
   RefreshCw,
-  AlertTriangle,
-  RotateCcw,
+  CheckCircle2,
+  Phone,
+  Mail,
+  Globe,
+  MapPin,
 } from 'lucide-react';
-import { ServicePrice } from '../types';
 
 export const Settings = () => {
   const {
     settings,
-    servicePrices,
     updateSettings,
-    updateServicePrices,
-    addService,
-    updateService,
-    deleteService,
     uploadLogo,
     resetToCleanState,
     resetToDemoData,
+    reloadFromFirestore,
+    isFirebaseActive,
   } = useAppContext();
   const { success, error: toastError } = useToast();
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const [formData, setFormData] = useState(settings);
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'services' | 'terms' | 'pwa' | 'database'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'terms' | 'pwa' | 'database'>('profile');
   const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
-
-  // New Service Rate Modal
-  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
-  const [newServiceName, setNewServiceName] = useState('');
-  const [newServicePrice, setNewServicePrice] = useState('3000');
-  const [newServiceCategory, setNewServiceCategory] = useState('Handling');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -67,38 +49,16 @@ export const Settings = () => {
     e.preventDefault();
     try {
       await updateSettings(formData);
-      success('Settings Saved', 'Business configurations and rates have been updated.');
+      success('Settings Saved', 'Company configurations have been saved to Cloud Firestore.');
     } catch (err: any) {
-      toastError('Unable to Save Settings', err?.message || 'Unable to save. Please check your connection and try again.');
+      toastError('Unable to Save', err?.message || 'Unable to save settings.');
     }
-  };
-
-  const handleCreateService = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newServiceName.trim()) {
-      toastError('Validation Error', 'Please enter a service name.');
-      return;
-    }
-    const rate = Number(newServicePrice) || 0;
-    addService({
-      id: `srv-${Date.now()}`,
-      name: newServiceName.trim(),
-      defaultPrice: rate,
-      category: newServiceCategory,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-    success('Service Added', `${newServiceName} added to rate sheet.`);
-    setIsAddServiceModalOpen(false);
-    setNewServiceName('');
-    setNewServicePrice('3000');
   };
 
   const handleResetToClean = () => {
     if (
       window.confirm(
-        '⚠️ RESET TO ZERO STATE: This will clear all customer records, leads, quotes, bookings, invoices, and expenses for a pristine production launch. Are you sure?'
+        '⚠️ RESET TO CLEAN PRODUCTION: This will clear all test records and prepare pristine Firestore storage. Are you sure?'
       )
     ) {
       resetToCleanState();
@@ -107,22 +67,23 @@ export const Settings = () => {
   };
 
   const handleResetToDemo = () => {
-    if (window.confirm('Reload demonstration dataset with sample customers, bookings, and invoices?')) {
+    if (window.confirm('Reload demonstration sample dataset?')) {
       resetToDemoData();
-      success('Demo Loaded', 'Demonstration records restored.');
+      success('Demo Restored', 'Sample demonstration records loaded.');
     }
   };
 
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-[#EAE5DC] shadow-xs">
         <div>
-          <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
-            Company Settings & Business Profile
+          <h2 className="text-lg font-extrabold text-[#1A1D20] tracking-tight flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#9E7B4F]" />
+            <span>Company Settings & Profiles</span>
           </h2>
-          <p className="text-xs text-slate-500 font-normal mt-0.5">
-            Configure company branding, GSTIN, default service rates, document prefixes, and PWA setup.
+          <p className="text-xs text-[#718292] font-normal mt-0.5">
+            Configure official business information, contact phone numbers, addresses, and default document terms.
           </p>
         </div>
 
@@ -132,31 +93,30 @@ export const Settings = () => {
           size="md"
           onClick={handleSave}
           leftIcon={<Save className="w-4 h-4 text-white" />}
-          className="shrink-0 font-bold"
+          className="shrink-0 font-bold bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white shadow-xs"
         >
           Save All Changes
         </Button>
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex overflow-x-auto gap-1 border-b border-slate-200/80 pb-1 text-xs font-bold">
+      <div className="flex overflow-x-auto gap-1.5 border-b border-[#EAE5DC] pb-1 text-xs font-bold">
         {[
-          { id: 'profile', label: 'Company Profile', icon: Building2 },
-          { id: 'billing', label: 'Invoices & Quotations', icon: FileText },
-          { id: 'services', label: 'Service Rates', icon: Tag },
+          { id: 'profile', label: 'Company Profile & Contacts', icon: Building2 },
+          { id: 'billing', label: 'Invoice & Quotation Setup', icon: FileText },
           { id: 'terms', label: 'Terms & Conditions', icon: FileCode },
-          { id: 'pwa', label: 'Install App (PWA)', icon: Smartphone },
-          { id: 'database', label: 'Data Management', icon: RefreshCw },
+          { id: 'pwa', label: 'App Installation (PWA)', icon: Smartphone },
+          { id: 'database', label: 'Cloud Storage & Sync', icon: RefreshCw },
         ].map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl cursor-pointer transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl cursor-pointer transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-slate-900 text-white font-bold shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-[#1A1D20] text-white font-bold shadow-2xs'
+                  : 'text-[#718292] hover:text-[#1A1D20] hover:bg-[#FAF8F5]'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -171,33 +131,33 @@ export const Settings = () => {
         {activeTab === 'profile' && (
           <Card>
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-indigo-600" />
+              <Building2 className="w-4 h-4 text-cyan-700" />
               <div>
-                <CardTitle className="text-xs font-bold text-slate-900">Brand & Contact Details</CardTitle>
-                <CardDescription>Printed on quotations, invoices, and dispatch documents</CardDescription>
+                <CardTitle className="text-xs font-bold text-slate-900">Brand Identity & Contacts</CardTitle>
+                <CardDescription>Printed on top of all generated invoices and quotation letters</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
-              {/* Brand Logo Banner */}
+              {/* Logo Banner */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900 text-white p-4.5 rounded-2xl shadow-sm border border-slate-800">
                 <div className="flex items-center gap-4">
                   <img
                     src={formData.logoUrl || settings.logoUrl || '/logo.png'}
                     alt="MKM Logo"
-                    className="w-16 h-16 rounded-full object-cover shadow-sm ring-2 ring-amber-400 shrink-0 bg-white"
+                    className="w-16 h-16 rounded-full object-cover shadow-sm ring-2 ring-cyan-400 shrink-0 bg-white"
                   />
                   <div>
-                    <h3 className="font-extrabold text-white text-sm">Official MKM Brand Identity</h3>
+                    <h3 className="font-extrabold text-white text-sm">Official MKM Brand Logo</h3>
                     <p className="text-slate-300 text-xs mt-0.5">
-                      Embedded across all tax invoices, quotation PDFs, client WhatsApp summaries, and navigation.
+                      Included in PDF exports, print outputs, WhatsApp messages, and application headers.
                     </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-amber-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full">
+                    <span className="inline-block mt-1.5 text-[10px] font-bold text-cyan-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full">
                       Active on Invoices & Quotations
                     </span>
                   </div>
                 </div>
 
-                <div className="shrink-0 flex items-center gap-2">
+                <div className="shrink-0">
                   <label className="cursor-pointer">
                     <input
                       type="file"
@@ -211,7 +171,7 @@ export const Settings = () => {
                             setIsUploadingLogo(true);
                             const url = await uploadLogo(file);
                             setFormData((prev) => ({ ...prev, logoUrl: url }));
-                            success('Logo Uploaded', 'Company logo uploaded to Firebase Storage.');
+                            success('Logo Uploaded', 'Company logo uploaded.');
                           } catch (err: any) {
                             toastError('Upload Failed', err?.message || 'Unable to upload logo.');
                           } finally {
@@ -220,7 +180,7 @@ export const Settings = () => {
                         }
                       }}
                     />
-                    <span className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-bold text-xs transition-colors shadow-sm">
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm cursor-pointer">
                       <Download className="w-3.5 h-3.5 rotate-180" />
                       {isUploadingLogo ? 'Uploading...' : 'Upload New Logo'}
                     </span>
@@ -228,7 +188,7 @@ export const Settings = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                 <Input
                   label="Registered Company Name *"
                   name="companyName"
@@ -237,21 +197,23 @@ export const Settings = () => {
                   required
                 />
                 <Input
-                  label="Primary Phone / Hotline *"
+                  label="Primary Phone Numbers *"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
+                  placeholder="98405 46766, 93423 06048"
                   required
                 />
                 <Input
-                  label="WhatsApp Business Number *"
+                  label="WhatsApp Number *"
                   name="whatsapp"
                   value={formData.whatsapp}
                   onChange={handleChange}
+                  placeholder="98405 46766"
                   required
                 />
                 <Input
-                  label="Company Email Address *"
+                  label="Official Email Address *"
                   name="email"
                   type="email"
                   value={formData.email}
@@ -259,16 +221,18 @@ export const Settings = () => {
                   required
                 />
                 <Input
-                  label="Official Website URL"
+                  label="Website URL"
                   name="website"
                   value={formData.website}
                   onChange={handleChange}
+                  placeholder="www.mkmpackersandmovers.com"
                 />
                 <Input
-                  label="GSTIN / Tax ID Number"
+                  label="GSTIN Number (Optional)"
                   name="gstNumber"
                   value={formData.gstNumber || ''}
                   onChange={handleChange}
+                  placeholder="33ADVPU2567L3ZM"
                 />
               </div>
 
@@ -278,20 +242,21 @@ export const Settings = () => {
                 rows={2}
                 value={formData.address}
                 onChange={handleChange}
+                placeholder="NEW NO 13 OLD NO 6, VALLALAR STREET, PADMANABA NAGAR, CHOOLAIMEDU, CHENNAI 600 094."
                 required
               />
             </CardContent>
           </Card>
         )}
 
-        {/* Tab 2: Invoices & Quotations */}
+        {/* Tab 2: Invoice & Quotation Setup */}
         {activeTab === 'billing' && (
           <Card>
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-indigo-600" />
+              <FileText className="w-4 h-4 text-cyan-700" />
               <div>
-                <CardTitle className="text-xs font-bold text-slate-900">Document Numbering & Taxes</CardTitle>
-                <CardDescription>Prefixes, starting sequences, and standard GST tax</CardDescription>
+                <CardTitle className="text-xs font-bold text-slate-900">Document Prefixes & Sequences</CardTitle>
+                <CardDescription>Automatic numbering for new Invoices and Quotations</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
@@ -341,220 +306,123 @@ export const Settings = () => {
           </Card>
         )}
 
-        {/* Tab 3: Service Rates */}
-        {activeTab === 'services' && (
-          <Card>
-            <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-indigo-600" />
-                <div>
-                  <CardTitle className="text-xs font-bold text-slate-900">Standard Service Rate Sheet</CardTitle>
-                  <CardDescription>Base rates used when auto-populating quotations and invoices</CardDescription>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => setIsAddServiceModalOpen(true)}
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-              >
-                Add Service Rate
-              </Button>
-            </CardHeader>
-            <CardContent className="p-5 space-y-3 text-xs">
-              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
-                {servicePrices.map((srv) => (
-                  <div key={srv.id} className="p-3 bg-white flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-extrabold text-slate-900 text-xs">{srv.name}</p>
-                      <p className="text-[11px] text-slate-400">{srv.category || 'Standard Service'}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="font-black text-slate-900 text-xs">
-                        {formatCurrency(srv.defaultPrice)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm(`Remove ${srv.name}?`)) {
-                            deleteService(srv.id);
-                          }
-                        }}
-                        className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Tab 4: Terms & Conditions */}
+        {/* Tab 3: Terms & Conditions */}
         {activeTab === 'terms' && (
           <Card>
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center gap-2">
-              <FileCode className="w-4 h-4 text-indigo-600" />
+              <FileCode className="w-4 h-4 text-cyan-700" />
               <div>
                 <CardTitle className="text-xs font-bold text-slate-900">Document Terms & Conditions</CardTitle>
-                <CardDescription>Printed at the bottom of customer documents</CardDescription>
+                <CardDescription>Default terms and conditions printed on quotation letters and invoices</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
               <Textarea
-                label="Standard Quotation & Booking Terms"
+                label="Default Quotation Terms & Conditions (5-Point Standard List)"
                 name="terms"
-                rows={4}
+                rows={6}
                 value={formData.terms}
                 onChange={handleChange}
-                placeholder="Enter moving terms..."
+                placeholder="1. Payment: 100% to be paid at the time of loading.&#10;2. This quote is valid for 14 days from this day..."
+              />
+
+              <Textarea
+                label="Default Invoice Terms & Conditions"
+                name="invoiceTerms"
+                rows={4}
+                value={formData.invoiceTerms || ''}
+                onChange={handleChange}
+                placeholder="1. The rate is inclusive of packing material, loading and unloading charges.&#10;2. Payment is due upon delivery."
               />
             </CardContent>
           </Card>
         )}
 
-        {/* Tab 5: PWA Installation */}
+        {/* Tab 4: PWA Installation */}
         {activeTab === 'pwa' && (
           <Card>
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-slate-500" />
+              <Smartphone className="w-4 h-4 text-cyan-700" />
               <div>
-                <CardTitle className="text-xs font-bold text-slate-900">Progressive Web App (PWA)</CardTitle>
-                <CardDescription>Install MKM Packers & Movers on your Desktop, Laptop, or Phone</CardDescription>
+                <CardTitle className="text-xs font-bold text-slate-900">Install as Desktop / Mobile App (PWA)</CardTitle>
+                <CardDescription>Fast, one-click access directly from your desktop or phone home screen</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 text-white">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4.5 rounded-2xl bg-slate-900 text-white border border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-black text-base shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-cyan-500 flex items-center justify-center text-slate-950 font-black text-base shrink-0">
                     MKM
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white leading-snug">MKM Logistics App</h4>
-                    <p className="text-xs text-slate-300 font-normal">
-                      Standalone desktop window • Works offline • Fast navigation
+                    <h4 className="text-sm font-bold text-white">MKM Logistics App</h4>
+                    <p className="text-xs text-slate-300 font-normal mt-0.5">
+                      Standalone desktop window • Works offline • Fast invoice & quotation generation
                     </p>
                   </div>
                 </div>
 
                 <Button
                   type="button"
-                  variant="accent"
-                  size="sm"
+                  variant="primary"
+                  size="md"
                   onClick={() => setIsPwaModalOpen(true)}
-                  leftIcon={<Download className="w-3.5 h-3.5" />}
+                  leftIcon={<Download className="w-4 h-4" />}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold"
                 >
-                  Open Install Guide
+                  Install App Now
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Tab 6: Data Management & Zero State Reset */}
+        {/* Tab 5: Cloud Storage & Sync */}
         {activeTab === 'database' && (
           <Card>
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-indigo-600" />
+              <RefreshCw className="w-4 h-4 text-cyan-700" />
               <div>
-                <CardTitle className="text-xs font-bold text-slate-900">Database & Production Setup</CardTitle>
-                <CardDescription>Reset test data before production handoff or reload demo data</CardDescription>
+                <CardTitle className="text-xs font-bold text-slate-900">Cloud Storage & Data Management</CardTitle>
+                <CardDescription>Firebase Firestore persistence status and maintenance</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
-              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-xs">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Production Zero State Mode</span>
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <div>
+                    <h4 className="font-bold text-emerald-950 text-xs">Firebase Firestore Active</h4>
+                    <p className="text-[11px] text-emerald-800">
+                      Connected to project <span className="font-mono font-bold">mkm-packers-movers</span>. All Invoices, Quotations, and Settings are permanently synchronized in the cloud.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[11px] leading-relaxed text-amber-800">
-                  When preparing this platform for real customer use, click below to wipe all mock demo customers, leads, bookings, invoices, and payments.
-                </p>
-                <div className="pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResetToClean}
-                    leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
-                    className="text-rose-600 border-rose-200 hover:bg-rose-50 font-bold"
-                  >
-                    Clear All Test Data (Zero State)
-                  </Button>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await reloadFromFirestore();
+                    success('Synchronized', 'All documents refreshed from Cloud Firestore.');
+                  }}
+                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Sync Now
+                </button>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="font-bold text-slate-900 text-xs">Reload Demo Dataset</div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Reset the database with complete demo moving orders, invoices, and quotation records for presentation.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleResetToDemo}
-                  leftIcon={<RotateCcw className="w-3.5 h-3.5 text-slate-700" />}
-                  className="font-bold"
-                >
-                  Reload Demo Records
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
+                <Button type="button" variant="secondary" size="sm" onClick={handleResetToDemo}>
+                  Load Sample Demo Records
+                </Button>
+                <Button type="button" variant="danger" size="sm" onClick={handleResetToClean}>
+                  Reset to Clean Zero State
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
-
-        <div className="flex justify-end pt-3">
-          <Button variant="primary" size="md" type="submit" leftIcon={<Save className="w-4 h-4 text-white" />}>
-            Save Settings
-          </Button>
-        </div>
       </form>
-
-      {/* Add Service Rate Modal */}
-      <Modal
-        isOpen={isAddServiceModalOpen}
-        onClose={() => setIsAddServiceModalOpen(false)}
-        title="Add Service Rate"
-        subtitle="Add a new standard moving service and default rate"
-        maxWidth="md"
-      >
-        <form onSubmit={handleCreateService} className="space-y-3.5 text-xs">
-          <Input
-            label="Service Title *"
-            placeholder="e.g. Storage & Warehousing (Per Month)"
-            value={newServiceName}
-            onChange={(e) => setNewServiceName(e.target.value)}
-            required
-          />
-          <Input
-            label="Default Price (₹) *"
-            type="number"
-            value={newServicePrice}
-            onChange={(e) => setNewServicePrice(e.target.value)}
-            required
-          />
-          <Input
-            label="Category"
-            placeholder="e.g. Handling / Packing / Freight"
-            value={newServiceCategory}
-            onChange={(e) => setNewServiceCategory(e.target.value)}
-          />
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsAddServiceModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" type="submit">
-              Add Service
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       <PwaInstallModal isOpen={isPwaModalOpen} onClose={() => setIsPwaModalOpen(false)} />
     </div>

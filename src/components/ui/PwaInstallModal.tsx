@@ -1,144 +1,141 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
-import { Download, CheckCircle2, Share, PlusSquare, Smartphone, Laptop, Sparkles, X } from 'lucide-react';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import {
+  Download,
+  CheckCircle2,
+  Share,
+  PlusSquare,
+  Smartphone,
+  Laptop,
+  Sparkles,
+  ArrowRight,
+} from 'lucide-react';
+import { isAppInstalled, isIosDevice, triggerDirectInstall } from '../../utils/pwa';
+import { MKM_LOGO_BASE64 } from '../../assets/logo';
 
 export const PwaInstallModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
 }> = ({ isOpen, onClose }) => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [activeTab, setActiveTab] = useState<'auto' | 'windows' | 'android' | 'ios'>('auto');
+  const [hasDirectPrompt, setHasDirectPrompt] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ios' | 'android' | 'desktop'>('desktop');
 
   useEffect(() => {
-    // Detect iOS
-    const isIosDevice =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(isIosDevice);
-    if (isIosDevice) {
+    setIsInstalled(isAppInstalled());
+    const ios = isIosDevice();
+    setIsIOS(ios);
+    setHasDirectPrompt(Boolean(window.deferredPrompt));
+
+    if (ios) {
       setActiveTab('ios');
+    } else if (/Android/.test(navigator.userAgent)) {
+      setActiveTab('android');
+    } else {
+      setActiveTab('desktop');
     }
 
-    // Detect standalone mode
-    const checkStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as any).standalone === true;
-    setIsStandalone(checkStandalone);
-
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setActiveTab('auto');
+    const onPromptReady = () => setHasDirectPrompt(true);
+    const onInstalled = () => {
+      setIsInstalled(true);
+      setHasDirectPrompt(false);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('pwa-prompt-ready', onPromptReady);
+    window.addEventListener('pwa-installed', onInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('pwa-prompt-ready', onPromptReady);
+      window.removeEventListener('pwa-installed', onInstalled);
     };
-  }, []);
+  }, [isOpen]);
 
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      try {
-        await deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          setIsStandalone(true);
-        }
-        setDeferredPrompt(null);
-        onClose();
-      } catch (err) {
-        console.error('PWA Install prompt error:', err);
-      }
-    } else if (isIOS) {
-      setActiveTab('ios');
-    } else {
-      setActiveTab('windows');
+  const handleDirectInstall = async () => {
+    const res = await triggerDirectInstall();
+    if (res === 'prompted' || res === 'installed') {
+      onClose();
     }
-  };
-
-  const handleDismiss = () => {
-    localStorage.setItem('mkm_pwa_dismissed', 'true');
-    onClose();
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Install MKM Packers"
-      subtitle="Install the app for quick access to your business dashboard, leads, bookings and invoices."
+      title="Instant App Installation"
+      subtitle="Download & install MKM Packers directly to your home screen or desktop for 1-click access."
       maxWidth="md"
     >
       <div className="space-y-4 text-xs">
-        {/* Brand Header */}
-        <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-md">
+        {/* Brand App Header */}
+        <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#1A1D20] text-white border border-[#2D3238] shadow-md">
           <img
-            src="/logo.png"
+            src={MKM_LOGO_BASE64}
             alt="MKM Logo"
-            className="w-12 h-12 rounded-xl object-cover ring-2 ring-amber-400 bg-white shrink-0"
+            className="w-12 h-12 rounded-xl object-contain ring-2 ring-[#9E7B4F] bg-white shrink-0 p-1"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-extrabold text-white leading-snug">MKM Packers & Movers</h4>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                PWA Standalone
+              <h4 className="text-sm font-extrabold text-white leading-snug truncate">
+                MKM Packers & Movers
+              </h4>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FAF6F0] text-[#9E7B4F]">
+                Official App
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 font-medium truncate mt-0.5">
-              Operations, Dispatch & Tax Billing
+            <p className="text-[11px] text-[#A0AEC0] font-medium truncate mt-0.5">
+              Instant offline access, Invoices & Quotations
             </p>
           </div>
-          {isStandalone && (
+          {isInstalled && (
             <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-500/30 shrink-0">
-              Installed
+              Installed ✓
             </span>
           )}
         </div>
 
-        {/* Benefits List */}
-        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-700">
-          <div className="flex items-center gap-2 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Direct launch from Windows Taskbar, macOS Dock, or Phone Home Screen</span>
+        {/* Direct 1-Click Install Button if supported */}
+        {hasDirectPrompt && !isInstalled && (
+          <div className="p-3.5 bg-[#FAF6F0] rounded-xl border border-[#DFC9AE] space-y-2 text-center">
+            <p className="text-xs font-bold text-[#1A1D20]">
+              Direct Install is ready for your device!
+            </p>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleDirectInstall}
+              leftIcon={<Download className="w-4 h-4 text-white" />}
+              className="w-full font-bold bg-[#9E7B4F] hover:bg-[#8A6A3E] text-white py-2.5 rounded-xl shadow-xs"
+            >
+              1-Click Download & Install App
+            </Button>
           </div>
-          <div className="flex items-center gap-2 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Clean, full-screen standalone workspace without browser URL bars</span>
-          </div>
-          <div className="flex items-center gap-2 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Fast instant startup with offline application shell caching</span>
-          </div>
-        </div>
+        )}
 
         {/* Platform Step-by-Step Instructions */}
-        <div className="border border-slate-200 rounded-xl p-3 space-y-2.5 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="font-bold text-slate-900">Platform Guide:</span>
-            <div className="flex bg-slate-100 p-0.5 rounded-lg">
+        <div className="border border-[#EAE5DC] rounded-xl p-3.5 space-y-3 bg-white">
+          <div className="flex items-center justify-between border-b border-[#F0EBE1] pb-2">
+            <span className="font-bold text-[#1A1D20]">Installation Guide:</span>
+            <div className="flex bg-[#FAF8F5] p-0.5 rounded-lg border border-[#EAE5DC]">
               <button
                 type="button"
-                onClick={() => setActiveTab('windows')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
-                  activeTab === 'windows' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                onClick={() => setActiveTab('desktop')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
+                  activeTab === 'desktop'
+                    ? 'bg-[#1A1D20] text-white shadow-2xs'
+                    : 'text-[#718292]'
                 }`}
               >
-                Windows / Desktop
+                PC / Laptop
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('android')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
-                  activeTab === 'android' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
+                  activeTab === 'android'
+                    ? 'bg-[#1A1D20] text-white shadow-2xs'
+                    : 'text-[#718292]'
                 }`}
               >
                 Android
@@ -146,54 +143,116 @@ export const PwaInstallModal: React.FC<{
               <button
                 type="button"
                 onClick={() => setActiveTab('ios')}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
-                  activeTab === 'ios' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
+                  activeTab === 'ios'
+                    ? 'bg-[#1A1D20] text-white shadow-2xs'
+                    : 'text-[#718292]'
                 }`}
               >
-                iOS Safari
+                iPhone / iPad
               </button>
             </div>
           </div>
 
-          {activeTab === 'windows' && (
-            <div className="text-slate-600 space-y-1 leading-relaxed">
-              <p>1. In Google Chrome or Microsoft Edge, look at the address bar.</p>
-              <p>2. Click the <span className="font-bold text-slate-900">Install icon (⊕)</span> or menu (⋮) → <span className="font-bold text-slate-900">"Install MKM Packers"</span>.</p>
-              <p>3. Click <span className="font-bold text-slate-900">Install</span> to pin to your Windows Taskbar or Desktop.</p>
+          {activeTab === 'desktop' && (
+            <div className="text-[#506070] space-y-2 leading-relaxed">
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  1
+                </span>
+                <p>
+                  In Chrome or Edge, click the <span className="font-bold text-[#1A1D20]">Install (⊕)</span> button in the address bar at the top right.
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  2
+                </span>
+                <p>
+                  Click <span className="font-bold text-[#1A1D20]">"Install"</span> when prompted to add MKM Packers to your Windows Desktop or Taskbar.
+                </p>
+              </div>
             </div>
           )}
 
           {activeTab === 'android' && (
-            <div className="text-slate-600 space-y-1 leading-relaxed">
-              <p>1. In Google Chrome on Android, tap the menu (<span className="font-bold text-slate-900">⋮</span>) at top right.</p>
-              <p>2. Select <span className="font-bold text-slate-900">"Install App"</span> or <span className="font-bold text-slate-900">"Add to Home screen"</span>.</p>
-              <p>3. Tap <span className="font-bold text-slate-900">Add</span> to place the MKM icon on your home screen.</p>
+            <div className="text-[#506070] space-y-2 leading-relaxed">
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  1
+                </span>
+                <p>
+                  In Chrome, tap the <span className="font-bold text-[#1A1D20]">menu (⋮)</span> icon at the top right corner.
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  2
+                </span>
+                <p>
+                  Tap <span className="font-bold text-[#1A1D20]">"Install App"</span> or <span className="font-bold text-[#1A1D20]">"Add to Home Screen"</span>.
+                </p>
+              </div>
             </div>
           )}
 
           {activeTab === 'ios' && (
-            <div className="text-slate-600 space-y-1.5 leading-relaxed">
-              <p>1. <span className="font-bold text-slate-900">Tap Share</span> (<Share className="w-3 h-3 inline mx-1 text-indigo-600" />) at the bottom of Safari.</p>
-              <p>2. <span className="font-bold text-slate-900">Choose Add to Home Screen</span> (<PlusSquare className="w-3 h-3 inline mx-1 text-slate-800" />).</p>
-              <p>3. <span className="font-bold text-slate-900">Tap Add</span> in the top-right corner.</p>
+            <div className="text-[#506070] space-y-2 leading-relaxed">
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  1
+                </span>
+                <p>
+                  In Safari, tap the <span className="font-bold text-[#1A1D20]">Share</span> button (<Share className="w-3.5 h-3.5 inline mx-0.5 text-blue-600" />) at the bottom toolbar.
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  2
+                </span>
+                <p>
+                  Scroll down and tap <span className="font-bold text-[#1A1D20]">"Add to Home Screen"</span> (<PlusSquare className="w-3.5 h-3.5 inline mx-0.5 text-slate-800" />).
+                </p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#FAF6F0] text-[#9E7B4F] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#DFC9AE]">
+                  3
+                </span>
+                <p>
+                  Tap <span className="font-bold text-[#1A1D20]">"Add"</span> in the top right corner. The MKM App icon will appear on your home screen!
+                </p>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-          <Button variant="outline" size="sm" type="button" onClick={handleDismiss}>
-            Not Now
+        {/* Benefits */}
+        <div className="space-y-1.5 bg-[#FAF8F5] p-3 rounded-xl border border-[#EAE5DC] text-[#718292]">
+          <div className="flex items-center gap-2 font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Opens directly in full-screen mode like a native mobile app</span>
+          </div>
+          <div className="flex items-center gap-2 font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Fast instant startup & offline database support</span>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F0EBE1]">
+          <Button variant="secondary" size="sm" type="button" onClick={onClose}>
+            Close
           </Button>
-          {deferredPrompt ? (
+          {hasDirectPrompt && !isInstalled ? (
             <Button
               variant="primary"
               size="sm"
               type="button"
-              onClick={handleInstallClick}
+              onClick={handleDirectInstall}
               leftIcon={<Download className="w-3.5 h-3.5" />}
+              className="bg-[#9E7B4F] hover:bg-[#8A6A3E]"
             >
-              Install App
+              Install Now
             </Button>
           ) : (
             <Button
@@ -202,6 +261,7 @@ export const PwaInstallModal: React.FC<{
               type="button"
               onClick={onClose}
               leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+              className="bg-[#1A1D20] hover:bg-black text-white"
             >
               Got It
             </Button>
